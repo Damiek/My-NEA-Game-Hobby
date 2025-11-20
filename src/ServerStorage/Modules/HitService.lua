@@ -92,7 +92,10 @@ function module.Normal_Hitbox(char,weapon,eHum,Hit,...)
 		else
 			eHum:TakeDamage(damage)
 			local KarmaDamage = 0
-			UI_Update:FireClient(player, KarmaDamage, eHum.Health, eHum.MaxHealth, damage)
+			if player then 
+				UI_Update:FireClient(player, KarmaDamage, eHum.Health, eHum.MaxHealth, damage)
+			end
+			
 		end
 
 
