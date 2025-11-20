@@ -1,0 +1,3 @@
+--hey hey, if you are using this for my combat series (https://www.youtube.com/watch?v=gdNXKg-12oc&t)
+--and you are wondering about the point lights just wait until you get to episode 26 (we are using them there)
+--until then you can technically remove them
