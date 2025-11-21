@@ -96,7 +96,6 @@ function module.Attack(char)
 		
 		Attachment:Destroy()
 		VFX_Event:FireAllClients("SwingEffect", SwingEffect, char)
-		print(Connections[Identifier].HitStart,char,"Has triggered the HitStart Event")
 		Connections[Identifier].HitStart:Disconnect()
 		Connections[Identifier].HitStart = nil
 	end)
@@ -115,7 +114,6 @@ function module.Attack(char)
 		task.delay(swingReset * 0.5, function()
 			char:SetAttribute("Attacking", false)
 		end)
-		print(Connections[Identifier].HitEnd,char,"Has triggered the HitEnd Event")
 		Connections[Identifier].HitEnd:Disconnect()
 		Connections[Identifier].HitEnd = nil
 	end)

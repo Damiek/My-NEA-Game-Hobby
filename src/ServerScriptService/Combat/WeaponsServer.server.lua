@@ -25,6 +25,7 @@ local BlockingEvent = Events.Blocking
 local TransformEvent = Events.Tranform
 local CombatEvent = Events.Combat
 local DataTransferEvent= SS.Server_Events.DataTransferEvent
+local DodgeEvent = Events.Dodge
 
 local SoundsModule = require(RS.Modules.Combat.SoundsModule)
 local HelpfullModule = require(SSModules.Other.Helpful)
@@ -221,7 +222,7 @@ end)
 
 
 
-CombatEvent.OnServerEvent:Connect(function(plr, action)
+DodgeEvent.OnServerEvent:Connect(function(plr, action)
     local char = plr.Character
     local hum = char:WaitForChild("Humanoid")
     local torso = char.Torso -- Note: Torso is often nil, use HumanoidRootPart (HRP)

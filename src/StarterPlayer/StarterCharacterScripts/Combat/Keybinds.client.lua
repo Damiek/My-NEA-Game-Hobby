@@ -7,6 +7,7 @@ local Transform = Events.Tranform
 local WeaponsEvent= Events.WeaponsEvent
 local combatEvent = Events.Combat
 local Moves_Event = Events.SkillEvent
+local DodgeEvent = Events.Dodge
 
 local debounce = false 
 
@@ -48,7 +49,7 @@ uis.InputBegan:Connect(function(input,isTyping)
 	if char:GetAttribute("IsTransforming") then return end
 
 	if input.KeyCode == Enum.KeyCode.Q then
-		combatEvent:FireServer("Dodge")
+		DodgeEvent:FireServer("Dodge")
 	end
 end)
 
@@ -117,6 +118,7 @@ uis.InputBegan:Connect(function(input,isTyping)
 	
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		combatEvent:FireServer("Swing")
+		print("Swing")
 	end
 end)
 
