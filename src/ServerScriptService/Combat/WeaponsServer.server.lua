@@ -225,43 +225,50 @@ end)
 DodgeEvent.OnServerEvent:Connect(function(plr, action)
     local char = plr.Character
     local hum = char:WaitForChild("Humanoid")
-    local torso = char.Torso -- Note: Torso is often nil, use HumanoidRootPart (HRP)
     local HRP = char:FindFirstChild("HumanoidRootPart")
+    local Head = char:FindFirstChild("Head") -- Get the Head part
     local currentWeapon = char:GetAttribute("CurrentWeapon")
     
-    -- Ensure HRP exists and player isn't busy
-    if not HRP or HelpfullModule.CheckForAttributes(char, true, true, true, nil, true) then 
+    -- Ensure HRP and Head exist and player isn't busy
+    if not HRP or not Head or HelpfullModule.CheckForAttributes(char, true, true, true, nil, true) then 
         return 
     end
 
     if action == "Dodge" then
-        SoundsModule.PlaySound(WeaponsSounds[currentWeapon].Combat.Dodging, torso or HRP)
+        -- Play sound and animation (unchanged)
+        SoundsModule.PlaySound(WeaponsSounds[currentWeapon].Combat.Dodging, HRP)
 
         DodgeAnims[plr] = hum:LoadAnimation(WeaponsAnimations[currentWeapon].Dodging.Dodge)
         DodgeAnims[plr]:Play()
 
+        -- *** MODIFIED MOVEMENT PARAMETERS ***
         local direction = HRP.CFrame.LookVector 
-        local dodgeForce = 20000 
+        local reducedDodgeForce = 5000 -- Significantly reduced the force from 20000
         local duration = 0.2 
 
-        
+        -- 1. Disable Head Collision
+        Head.CanCollide = false
+        -- 2. Apply Movement
         HRP:SetNetworkOwner(nil) 
-
-        HRP:ApplyImpulse(direction * dodgeForce)
+        HRP:ApplyImpulse(direction * reducedDodgeForce) -- Use the reduced force
         
-        task.delay(duration, function()
-            HRP:SetNetworkOwner(plr) 
-        end)
-
+        -- 3. End of Dodge Logic
         hum.PlatformStand = true
-        task.delay(DodgeAnims[plr].Length, function()
-             if hum.PlatformStand then
-                 hum.PlatformStand = false
-             end
+        local totalDodgeTime = DodgeAnims[plr].Length
+
+        task.delay(duration, function()
+            HRP:SetNetworkOwner(plr) -- Return network ownership after impulse
+        end)
+        
+        task.delay(totalDodgeTime, function()
+            -- Re-enable collision and movement after the animation completes
+            Head.CanCollide = true
+            if hum.PlatformStand then
+                hum.PlatformStand = false
+            end
         end)
     end
 end)
-
 
 BlockingEvent.OnServerEvent:Connect(function(plr, action)
 	local char = plr.Character
