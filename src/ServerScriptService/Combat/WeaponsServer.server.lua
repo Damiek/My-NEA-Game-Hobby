@@ -221,34 +221,46 @@ end)
 
 
 
-CombatEvent.OnServerEvent:Connect(function(plr,action)
-	local char = plr.Character
-	local hum = char:WaitForChild("Humanoid")
-	local torso = char.Torso
-	local rightArm = char["Right Arm"]
+CombatEvent.OnServerEvent:Connect(function(plr, action)
+    local char = plr.Character
+    local hum = char:WaitForChild("Humanoid")
+    local torso = char.Torso -- Note: Torso is often nil, use HumanoidRootPart (HRP)
+    local HRP = char:FindFirstChild("HumanoidRootPart")
+    local currentWeapon = char:GetAttribute("CurrentWeapon")
+    
+    -- Ensure HRP exists and player isn't busy
+    if not HRP or HelpfullModule.CheckForAttributes(char, true, true, true, nil, true) then 
+        return 
+    end
 
-	local currentWeapon = char:GetAttribute("CurrentWeapon")
+    if action == "Dodge" then
+        SoundsModule.PlaySound(WeaponsSounds[currentWeapon].Combat.Dodging, torso or HRP)
 
-	local attacking = char:GetAttribute("Attacking")
-	local stunned = char:GetAttribute("Stunned")
-	local isRagdoll = char:GetAttribute("IsRagdoll")
-	if HelpfullModule.CheckForAttributes(char,true,true,true,nil,true) then return end
+        DodgeAnims[plr] = hum:LoadAnimation(WeaponsAnimations[currentWeapon].Dodging.Dodge)
+        DodgeAnims[plr]:Play()
 
+        local direction = HRP.CFrame.LookVector 
+        local dodgeForce = 20000 
+        local duration = 0.2 
 
-	if action == "Dodge" then 
-		SoundsModule.PlaySound(WeaponsSounds[currentWeapon].Combat.Dodging,torso)
+        
+        HRP:SetNetworkOwner(nil) 
 
-		DodgeAnims[plr] = hum:LoadAnimation(WeaponsAnimations[currentWeapon].Dodging.Dodge)
-		DodgeAnims[plr]:Play()
+        HRP:ApplyImpulse(direction * dodgeForce)
+        
+        task.delay(duration, function()
+            HRP:SetNetworkOwner(plr) 
+        end)
 
-	end
-
-
-
-
-
-
+        hum.PlatformStand = true
+        task.delay(DodgeAnims[plr].Length, function()
+             if hum.PlatformStand then
+                 hum.PlatformStand = false
+             end
+        end)
+    end
 end)
+
 
 BlockingEvent.OnServerEvent:Connect(function(plr, action)
 	local char = plr.Character
