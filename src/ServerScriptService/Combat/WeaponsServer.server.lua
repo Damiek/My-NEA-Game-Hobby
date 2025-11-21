@@ -225,61 +225,63 @@ DodgeEvent.OnServerEvent:Connect(function(plr, action)
     local hum = char:WaitForChild("Humanoid")
     local HRP = char:FindFirstChild("HumanoidRootPart")
     local Head = char:FindFirstChild("Head")
-	local Torso = char:FindFirstChild("Torso")
-	local rightArm = char["Right Arm"]
-	local leftArm = char["Left Arm"]
-	local Rightleg = char["Right Leg"]
-	local Leftleg = char["Left Leg"]
+    local Torso = char:FindFirstChild("Torso")
+    local rightArm = char["Right Arm"]
+    local leftArm = char["Left Arm"]
+    local Rightleg = char["Right Leg"]
+    local Leftleg = char["Left Leg"]
+
     local currentWeapon = char:GetAttribute("CurrentWeapon")
     
-    -- Ensure HRP and Head exist and player isn't busy
+    
     if not HRP or not Head or HelpfullModule.CheckForAttributes(char, true, true, true, nil, true) then 
         return 
     end
 
     if action == "Dodge" then
-        -- Play sound and animation (unchanged)
         SoundsModule.PlaySound(WeaponsSounds[currentWeapon].Combat.Dodging, HRP)
         DodgeAnims[plr] = hum:LoadAnimation(WeaponsAnimations[currentWeapon].Dodging.Dodge)
         DodgeAnims[plr]:Play()
 
-        -- *** MODIFIED MOVEMENT PARAMETERS ***
+        
         local direction = HRP.CFrame.LookVector 
-        local DodgeForce = 2000 
-        local duration = 0.2 
-
-        char:SetAttribute("Dodging", true)
-        Head.CanCollide = false
-		Torso.CanCollide = false
-		rightArm.CanCollide = false
-		leftArm.CanCollide = false
-		Rightleg.CanCollide = false
-		Leftleg.CanCollide = false
-		
-       
-        HRP:SetNetworkOwner(nil) 
-        HRP:ApplyImpulse(direction * DodgeForce) 
-        
-        
-        hum.PlatformStand = true
+        local DodgeSpeed = 100 
+        local velocityDuration = 0.15 
         local totalDodgeTime = DodgeAnims[plr].Length
 
-        task.delay(duration, function()
-            HRP:SetNetworkOwner(plr) -- Return network ownership after impulse
+        char:SetAttribute("Dodging", true)
+        
+        Head.CanCollide = false
+        Torso.CanCollide = false
+        rightArm.CanCollide = false
+        leftArm.CanCollide = false
+        Rightleg.CanCollide = false
+        Leftleg.CanCollide = false
+        
+        hum.PlatformStand = true
+
+    
+        HRP:SetNetworkOwner(nil) 
+        HRP.AssemblyLinearVelocity = direction * DodgeSpeed 
+
+        -- 3. Stop Velocity and return ownership
+        task.delay(velocityDuration, function()
+            HRP.AssemblyLinearVelocity = Vector3.new(0, HRP.AssemblyLinearVelocity.Y, 0) 
+            HRP:SetNetworkOwner(plr) 
         end)
         
         task.delay(totalDodgeTime, function()
-            -- Re-enable collision and movement after the animation completes
             Head.CanCollide = true
-			Torso.CanCollide = true
-			rightArm.CanCollide = true
-			leftArm.CanCollide = true
-			Rightleg.CanCollide = true
-			Leftleg.CanCollide = true
+            Torso.CanCollide = true
+            rightArm.CanCollide = true
+            leftArm.CanCollide = true
+            Rightleg.CanCollide = true
+            Leftleg.CanCollide = true
+            
             if hum.PlatformStand then
                 hum.PlatformStand = false
             end
-			char:SetAttribute("Dodging", false)
+            char:SetAttribute("Dodging", false)
         end)
     end
 end)
