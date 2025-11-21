@@ -226,7 +226,12 @@ DodgeEvent.OnServerEvent:Connect(function(plr, action)
     local char = plr.Character
     local hum = char:WaitForChild("Humanoid")
     local HRP = char:FindFirstChild("HumanoidRootPart")
-    local Head = char:FindFirstChild("Head") -- Get the Head part
+    local Head = char:FindFirstChild("Head")
+	local Torso = char:FindFirstChild("Torso")
+	local rightArm = char["Right Arm"]
+	local leftArm = char["Left Arm"]
+	local Rightleg = char["Right Leg"]
+	local Leftleg = char["Left Leg"]
     local currentWeapon = char:GetAttribute("CurrentWeapon")
     
     -- Ensure HRP and Head exist and player isn't busy
@@ -243,11 +248,17 @@ DodgeEvent.OnServerEvent:Connect(function(plr, action)
 
         -- *** MODIFIED MOVEMENT PARAMETERS ***
         local direction = HRP.CFrame.LookVector 
-        local reducedDodgeForce = 5000 -- Significantly reduced the force from 20000
+        local reducedDodgeForce = 2000 -- Significantly reduced the force from 20000
         local duration = 0.2 
 
         -- 1. Disable Head Collision
         Head.CanCollide = false
+		Torso.CanCollide = false
+		rightArm.CanCollide = false
+		leftArm.CanCollide = false
+		Rightleg.CanCollide = false
+		Leftleg.CanCollide = false
+		
         -- 2. Apply Movement
         HRP:SetNetworkOwner(nil) 
         HRP:ApplyImpulse(direction * reducedDodgeForce) -- Use the reduced force
@@ -263,6 +274,11 @@ DodgeEvent.OnServerEvent:Connect(function(plr, action)
         task.delay(totalDodgeTime, function()
             -- Re-enable collision and movement after the animation completes
             Head.CanCollide = true
+			Torso.CanCollide = true
+			rightArm.CanCollide = true
+			leftArm.CanCollide = true
+			Rightleg.CanCollide = true
+			Leftleg.CanCollide = true
             if hum.PlatformStand then
                 hum.PlatformStand = false
             end
