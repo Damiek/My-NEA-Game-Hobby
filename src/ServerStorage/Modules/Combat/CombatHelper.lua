@@ -95,7 +95,6 @@ function module.Attack(char)
 		end)
 		
 		Attachment:Destroy()
-		VFX_Event:FireAllClients("SwingEffect", SwingEffect, char)
 		Connections[Identifier].HitStart:Disconnect()
 		Connections[Identifier].HitStart = nil
 	end)
@@ -121,6 +120,7 @@ function module.Attack(char)
 
 
 	playSwingAnimation:Play()
+	VFX_Event:FireAllClients("SwingEffect", SwingEffect, char)
 	SoundsModule.PlaySound(WeaponSounds[currentWeapon].Combat.Swing, torso)
 end
 

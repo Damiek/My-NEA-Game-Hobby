@@ -118,7 +118,6 @@ uis.InputBegan:Connect(function(input,isTyping)
 	
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		combatEvent:FireServer("Swing")
-		print("Swing")
 	end
 end)
 

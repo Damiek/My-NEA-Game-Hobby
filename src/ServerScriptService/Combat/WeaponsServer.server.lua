@@ -221,70 +221,32 @@ end)
 
 
 DodgeEvent.OnServerEvent:Connect(function(plr, action)
-    local char = plr.Character
-    local hum = char:WaitForChild("Humanoid")
-    local HRP = char:FindFirstChild("HumanoidRootPart")
-    local Head = char:FindFirstChild("Head")
-    local Torso = char:FindFirstChild("Torso")
-    local rightArm = char["Right Arm"]
-    local leftArm = char["Left Arm"]
-    local Rightleg = char["Right Leg"]
-    local Leftleg = char["Left Leg"]
+	if action ~= "Dodge" then return end
+	
+	local char = plr.Character
+	local hum = char and char:FindFirstChild("Humanoid")
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hum or not hrp then return end
 
-    local currentWeapon = char:GetAttribute("CurrentWeapon")
-    
-    
-    if not HRP or not Head or HelpfullModule.CheckForAttributes(char, true, true, true, nil, true) then 
-        return 
-    end
+	-- Block spamming if needed
+	if char:GetAttribute("Dodging") then return end
+	char:SetAttribute("Dodging", true)
 
-    if action == "Dodge" then
-        SoundsModule.PlaySound(WeaponsSounds[currentWeapon].Combat.Dodging, HRP)
-        DodgeAnims[plr] = hum:LoadAnimation(WeaponsAnimations[currentWeapon].Dodging.Dodge)
-        DodgeAnims[plr]:Play()
+	-- Play animation and sound (server)
+	SoundsModule.PlaySound(WeaponsSounds[char:GetAttribute("CurrentWeapon")].Combat.Dodging, hrp)
 
-        
-        local direction = HRP.CFrame.LookVector 
-        local DodgeSpeed = 100 
-        local velocityDuration = 0.15 
-        local totalDodgeTime = DodgeAnims[plr].Length
+	local anim = hum:LoadAnimation(WeaponsAnimations[char:GetAttribute("CurrentWeapon")].Dodging.Dodge)
+	anim:Play()
 
-        char:SetAttribute("Dodging", true)
-        
-        Head.CanCollide = false
-        Torso.CanCollide = false
-        rightArm.CanCollide = false
-        leftArm.CanCollide = false
-        Rightleg.CanCollide = false
-        Leftleg.CanCollide = false
-        
-        hum.PlatformStand = true
+	-- OPTIONAL: give i-frames here
+	-- char:SetAttribute("IFrame", true)
 
-    
-        HRP:SetNetworkOwner(nil) 
-        HRP.AssemblyLinearVelocity = direction * DodgeSpeed 
-
-        -- 3. Stop Velocity and return ownership
-        task.delay(velocityDuration, function()
-            HRP.AssemblyLinearVelocity = Vector3.new(0, HRP.AssemblyLinearVelocity.Y, 0) 
-            HRP:SetNetworkOwner(plr) 
-        end)
-        
-        task.delay(totalDodgeTime, function()
-            Head.CanCollide = true
-            Torso.CanCollide = true
-            rightArm.CanCollide = true
-            leftArm.CanCollide = true
-            Rightleg.CanCollide = true
-            Leftleg.CanCollide = true
-            
-            if hum.PlatformStand then
-                hum.PlatformStand = false
-            end
-            char:SetAttribute("Dodging", false)
-        end)
-    end
+	task.delay(anim.Length, function()
+		char:SetAttribute("Dodging", false)
+		-- char:SetAttribute("IFrame", false)
+	end)
 end)
+
 
 BlockingEvent.OnServerEvent:Connect(function(plr, action)
 	local char = plr.Character
