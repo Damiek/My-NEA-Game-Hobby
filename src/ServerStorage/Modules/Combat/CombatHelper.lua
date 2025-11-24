@@ -52,7 +52,7 @@ function module.Attack(char)
 	
 	if not HRP or not torso then return end
 
-	if HelpfullModule.CheckForAttributes(char,true,true,true,true,true,true) then return end
+	if HelpfullModule.CheckForAttributes(char,true,true,true,true,true,true,true) then return end
 
 	local currentWeapon = char:GetAttribute("CurrentWeapon")
 

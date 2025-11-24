@@ -13,6 +13,11 @@ local debounce = false
 
 local plr = game:GetService("Players").LocalPlayer
 local char = plr.Character
+local hrp = char:WaitForChild("HumanoidRootPart")
+local hum = char:WaitForChild("Humanoid")
+
+local DODGE_SPEED = 100
+local DODGE_TIME = 0.15
 
 
 --------------------------------------------------------------------------------------
@@ -32,6 +37,15 @@ local function stopBlocking()
 	blockingEvent:FireServer("UnBlocking")
 end
 
+local function doDodge()
+	local bv = Instance.new("BodyVelocity")
+	bv.MaxForce = Vector3.new(1e6, 0, 1e6)
+	bv.Velocity = hrp.CFrame.LookVector * DODGE_SPEED
+	bv.Parent = hrp
+
+	game.Debris:AddItem(bv, DODGE_TIME)
+end
+
 
 
 uis.InputBegan:Connect(function(input,isTyping)
@@ -39,19 +53,26 @@ uis.InputBegan:Connect(function(input,isTyping)
 	if char:GetAttribute("IsTransforming") then return end
 
 	if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		if char:GetAttribute("Dodging") then return end	
 		blockingEvent:FireServer("Parry")
 	end
 end)
 
-
-uis.InputBegan:Connect(function(input,isTyping)
-	if isTyping then return end
-	if char:GetAttribute("IsTransforming") then return end
-
+uis.InputBegan:Connect(function(input, gp)
+	if gp then return end
 	if input.KeyCode == Enum.KeyCode.Q then
 		DodgeEvent:FireServer("Dodge")
+
+		for _, anim in ipairs(hum.Animator:GetPlayingAnimationTracks()) do
+			if anim.Name == "Dodge" then
+				anim.GetMarkerReachedSignal("Dodge"):Connect(function()
+					doDodge()
+				end)
+			end
+		end
 	end
 end)
+
 
 uis.InputBegan:Connect(function(key,istyping)
 	if istyping or debounce then return end

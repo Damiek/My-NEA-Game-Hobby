@@ -45,6 +45,7 @@ local TransformAnims = Combat_Data.TransformAnims
 local ParryAnims = Combat_Data.ParryAnims
 local DodgeAnims = Combat_Data.DodgeAnims
 local EquipDebounce = Combat_Data.EquipDebounce
+local DodgeDebounce = Combat_Data.DodgeDebounce
 
 local function ChangeWeapon(plr,char,torso)
 	char:SetAttribute("Equipped", false)
@@ -86,7 +87,7 @@ local function ChangeWeapon(plr,char,torso)
 	Welds[plr].Part1 = Weapon
 
 
-	if HelpfullModule.CheckForAttributes(char,true,true,true,true,nil,true) then return end
+	if HelpfullModule.CheckForAttributes(char,true,true,true,true,nil,true,true) then return end
 
 	if EquipAnims[plr] then EquipAnims[plr]:Stop() end
 	if IdleAnims[plr] then IdleAnims[plr]:Stop() end
@@ -229,7 +230,9 @@ DodgeEvent.OnServerEvent:Connect(function(plr, action)
 	if not hum or not hrp then return end
 
 	-- Block spamming if needed
-	if char:GetAttribute("Dodging") then return end
+	if HelpfullModule.CheckForAttributes(char,true,true,true,nil,true,true,false) then return end
+	if DodgeDebounce[plr] then return end
+	DodgeDebounce[plr] = true
 	char:SetAttribute("Dodging", true)
 
 	-- Play animation and sound (server)
@@ -238,13 +241,12 @@ DodgeEvent.OnServerEvent:Connect(function(plr, action)
 	local anim = hum:LoadAnimation(WeaponsAnimations[char:GetAttribute("CurrentWeapon")].Dodging.Dodge)
 	anim:Play()
 
-	-- OPTIONAL: give i-frames here
-	-- char:SetAttribute("IFrame", true)
-
 	task.delay(anim.Length, function()
 		char:SetAttribute("Dodging", false)
-		-- char:SetAttribute("IFrame", false)
 	end)
+
+	task.wait(5)
+	DodgeDebounce[plr] = false
 end)
 
 
@@ -259,7 +261,7 @@ BlockingEvent.OnServerEvent:Connect(function(plr, action)
 	local attacking = char:GetAttribute("Attacking")
 	local stunned = char:GetAttribute("Stunned")
 	local isRagdoll = char:GetAttribute("IsRagdoll")
-	if HelpfullModule.CheckForAttributes(char,true,true,true,nil,true) then return end
+	if HelpfullModule.CheckForAttributes(char,true,true,true,nil,true,true,true) then return end
 
 
 
@@ -300,7 +302,7 @@ BlockingEvent.OnServerEvent:Connect(function(plr, action)
 		hum.JumpHeight = StarterPlayer.CharacterJumpHeight
 
 	elseif action == "Parry" and not char:GetAttribute("IsBlocking") and not char:GetAttribute("Parrying") and not char:GetAttribute("ParryCD") then
-		if HelpfullModule.CheckForAttributes(char,true,true,true,true,true,true) then return end
+		if HelpfullModule.CheckForAttributes(char,true,true,true,true,true,true,true) then return end
 		char:SetAttribute("Parrying",true)
 		hum.WalkSpeed =  ((StarterPlayer.CharacterWalkSpeed)/2)
 		hum.JumpHeight = 0
@@ -341,7 +343,7 @@ end)
 TransformEvent.OnServerEvent:Connect(function(plr, action)
 	local char = plr.Character
 	local Race= char:GetAttribute("Race")
-	if HelpfullModule.CheckForAttributes(char,true,true,true,nil,true) then return end
+	if HelpfullModule.CheckForAttributes(char,true,true,true,nil,true,true,true) then return end
 
 	if action == "Mode 1" then
 		Mode_Module.Mode1(char,WeaponsAnimations,Race,EquipDebounce,Welds,TransformAnims,EquipAnims,IdleAnims,WeaponsWeld,ChangeWeapon)

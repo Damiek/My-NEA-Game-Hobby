@@ -17,7 +17,7 @@ local ServerEvents = SS.Server_Events
 local DataTransferEvent = ServerEvents.DataTransferEvent
 
 
-local function getUniqueId(char: Model)
+local function getUniqueId(char)
 	local uid = char.Humanoid:FindFirstChild("UniqueId")
 	return uid.Value or nil
 end
@@ -93,7 +93,7 @@ function Bone.applyKarmaDot(targetHumanoid, initialKarma, baseDamage)
 	return totalDamage
 end
 
-local function Mode1_R(char:Model)
+local function Mode1_R(char)
 	local plr = game.Players:GetPlayerFromCharacter(char)
 	local hum = char.humanoid
 	local torso = char:FindFirstChild("Torso")
@@ -101,7 +101,7 @@ local function Mode1_R(char:Model)
 	
 	local Identifier = plr or getUniqueId(char)
 	if not Identifier then return end
-	local EquipDebounce = Bone.EquipDebounce 
+	local EquipDebounce = Bone.EquipDebounce
 	if EquipDebounce[Identifier] then return end
 	local Welds = Bone.Welds 
 	local EquipAnims= Bone.EquipAnims 
@@ -139,7 +139,7 @@ local function Mode1_R(char:Model)
 				end
 			end
 			
-			if HelpfullModule.CheckForAttributes(char,true,true,false,true,true,true) then return end
+			if HelpfullModule.CheckForAttributes(char,true,true,false,true,true,true,true) then return end
 			
 			char:SetAttribute("CurrentWeapon",TargetWeapon)
 			

@@ -8,4 +8,5 @@ CombatData.TransformAnims = {}
 CombatData.ParryAnims = {}
 CombatData.DodgeAnims = {}
 CombatData.EquipDebounce = {}
+CombatData.DodgeDebounce = {}
 return CombatData

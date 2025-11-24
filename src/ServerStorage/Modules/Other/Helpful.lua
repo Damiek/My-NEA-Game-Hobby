@@ -22,13 +22,15 @@ function module.CheckForStatus(eChar,char,blockingDamage,hitPos,CheckForBlocking
 	local stop = false
 	
 	if CheckForParrying and not stop then
-		if eChar:GetAttribute("Parrying") and module.CheckInFront(char,eChar) then BlockingModule.Parrying(char,eChar,hitPos)  stop = true end
+		if eChar:GetAttribute("Parrying") and module.CheckInFront(char,eChar) then 
+			BlockingModule.Parrying(char,eChar,hitPos)  stop = true end
 	end
 	
 	
 	
 	if CheckForBlocking and not stop then
-		if eChar:GetAttribute("IsBlocking") and module.CheckInFront(char,eChar) then BlockingModule.Blocking(eChar,blockingDamage,hitPos) stop = true end
+		if eChar:GetAttribute("IsBlocking") and module.CheckInFront(char,eChar) then
+			 BlockingModule.Blocking(eChar,blockingDamage,hitPos) stop = true end
 		
 	end
 	
@@ -40,13 +42,14 @@ function module.CheckForStatus(eChar,char,blockingDamage,hitPos,CheckForBlocking
 	
 end
 
-function module.CheckForAttributes(char,attack,swing,stun,ragdoll,equipped,blocking)
+function module.CheckForAttributes(char,attack,swing,stun,ragdoll,equipped,blocking,Dodging)
 	local attacking = char:GetAttribute("Attacking")
 	local swing   = char:GetAttribute("Swing")
 	local stunned  = char:GetAttribute("Stunned")
 	local isEquipped = char:GetAttribute("Equipped")
 	local isRagdoll = char:GetAttribute("IsRagdoll")
 	local isBlocking = char:GetAttribute("isBlocking")
+	local isDodging = char:GetAttribute("Dodging")
 	
 	local stop = false
 	
@@ -57,7 +60,7 @@ function module.CheckForAttributes(char,attack,swing,stun,ragdoll,equipped,block
 	if isRagdoll and ragdoll then stop = true end
 	if equipped ~= nil and not isEquipped then stop = true end
 	if blocking ~= nil and isBlocking then stop = true end
-	
+	if Dodging ~= nil and isDodging then stop = true end
 	
 	return stop
 end

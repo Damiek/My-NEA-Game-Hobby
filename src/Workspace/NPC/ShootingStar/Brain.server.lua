@@ -100,7 +100,7 @@ local function ChangeWeapon(plr,char,torso)
 
 
 
-	if HelpfullModule.CheckForAttributes(char,true,true,true,true,nil,true) then return end
+	if HelpfullModule.CheckForAttributes(char,true,true,true,true,nil,true,true) then return end
 
 	if EquipAnims[plr] then EquipAnims[plr]:Stop() end
 	if IdleAnims[plr] then IdleAnims[plr]:Stop() end

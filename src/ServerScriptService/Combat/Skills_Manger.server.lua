@@ -33,7 +33,7 @@ MoveEvent.OnServerEvent:Connect(function(plr, action)
 	local module = require(elementModule)
 
 
-	if HelpfullModule.CheckForAttributes(char, true, true, true, nil, true) then
+	if HelpfullModule.CheckForAttributes(char, true, true, true, nil, true, true, true) then
 		warn("CheckForAttributes blocked the move")
 		return
 	end
