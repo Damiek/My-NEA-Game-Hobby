@@ -16,8 +16,8 @@ local char = plr.Character
 local hrp = char:WaitForChild("HumanoidRootPart")
 local hum = char:WaitForChild("Humanoid")
 
-local DODGE_SPEED = 100
-local DODGE_TIME = 0.15
+local DODGE_SPEED = 130
+local DODGE_TIME = 0.18
 
 
 --------------------------------------------------------------------------------------

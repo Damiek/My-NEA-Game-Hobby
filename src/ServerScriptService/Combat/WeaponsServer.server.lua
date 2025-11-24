@@ -245,7 +245,7 @@ DodgeEvent.OnServerEvent:Connect(function(plr, action)
 		char:SetAttribute("Dodging", false)
 	end)
 
-	task.wait(5)
+	task.wait(3)
 	DodgeDebounce[plr] = false
 end)
 
