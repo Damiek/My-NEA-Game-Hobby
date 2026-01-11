@@ -28,6 +28,7 @@ function module.Parrying(char,eChar,hitPos)
 	local BlockDmg = WeaponStatsModule.getStats(currentWeapon).BlockDmg
 	char:SetAttribute("Blocking",char:GetAttribute("Blocking")+ BlockDmg)
 	eChar:SetAttribute("Blocking",eChar:GetAttribute("Blocking")- BlockDmg)
+	eChar:SetAttribute("InCombat",true)
 	
 	if eChar:GetAttribute("Blocking") < 0 then eChar:SetAttribute("Blocking",0) end
 
@@ -84,6 +85,7 @@ function module.Blocking(enemyChar,damage,hitPos)
 		local BlockDmg = WeaponStatsModule.getStats(currentWeapon).BlockDmg
 		
 		enemyChar:SetAttribute("Blocking", enemyChar:GetAttribute("Blocking") + BlockDmg)
+		enemyChar:SetAttribute("InCombat",true)
 		
 		if enemyChar:GetAttribute("Blocking") >= 100 then
 			module.GuardBreak(enemyChar)
@@ -102,5 +104,7 @@ function module.Blocking(enemyChar,damage,hitPos)
 		
 	end
 end
+
+
 
 return module

@@ -106,8 +106,7 @@ function module.Attack(char)
 		VolumeHitbox.DestroyHitboxes(char)
 
 		char:SetAttribute("Swing", false)
-		hum.WalkSpeed = StarterPlayer.CharacterWalkSpeed
-		hum.JumpHeight = StarterPlayer.CharacterJumpHeight
+		HelpfullModule.ResetMobility(char)
 		local swingReset = WeaponStats.SwingReset
 
 		task.delay(swingReset * 0.5, function()

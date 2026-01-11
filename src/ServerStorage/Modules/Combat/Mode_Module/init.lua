@@ -7,20 +7,18 @@ local SSModules = SS.Modules
 local ElementInfo = require(SSModules.Element.ElementInfo)
 local HelpfulModule = require(SSModules.Other.Helpful)
 local Textmod = require(SSModules.text)
-local TransformationModule = require(SSModules.Other.Transformations)
-local WeaponsStatsModule = require(SSModules.Weapons.WeaponStats)
 
 
 
 
--- Assets
+
+
 local Models = RS.Models
 local WeaponsModels = Models.Weapons
 
--- Store animation marker connections (per player/identifier)
 local TransformConnections = {}
 
--- Utility: Get a unique ID if player reference is unavailable
+
 local function getUniqueId(char)
 	local uid = char.Humanoid:FindFirstChild("UniqueId")
 	return uid.Value or nil
@@ -38,8 +36,7 @@ function module.Mode1(
 	TransformAnims,
 	EquipAnims,
 	IdleAnims,
-	WeaponsWeld,
-	ChangeWeapon
+	WeaponsWeld
 )
 	if not char or not char:FindFirstChild("Humanoid") then return end
 
@@ -105,7 +102,7 @@ function module.Mode1(
 			end
 
 			-- Change to new weapon
-			ChangeWeapon(Identifier, char, torso)
+			HelpfulModule.ChangeWeapon(Identifier, char, torso)
 
 			-- Setup weld
 			if Welds[Identifier] then
@@ -120,8 +117,8 @@ function module.Mode1(
 
 			-- Restore states
 			rootPart.Anchored = false
-			char:SetAttribute("Equipped", true)
 			char:SetAttribute("IsTransforming", false)
+			char:SetAttribute("Equipped", true)
 			char:SetAttribute("iframes", false)
 			char:SetAttribute("Mode1", true) -- keep active
 			EquipDebounce[Identifier] = false
@@ -145,8 +142,7 @@ function module.Mode2(
 	TransformAnims,
 	EquipAnims,
 	IdleAnims,
-	WeaponsWeld,
-	ChangeWeapon
+	WeaponsWeld
 )
 	if not char or not char:FindFirstChild("Humanoid") then return end
 
@@ -219,7 +215,7 @@ function module.Mode2(
 			end
 
 			-- Change weapon
-			ChangeWeapon(Identifier, char, torso)
+			HelpfulModule.ChangeWeapon(Identifier, char, torso)
 
 			-- Setup weld
 			if Welds[Identifier] then
@@ -235,10 +231,10 @@ function module.Mode2(
 			EquipAnims[Identifier] = hum.Animator:LoadAnimation(WeaponsAnimations[newWeapon].Main.Equip)
 
 			rootPart.Anchored = false
-			char:SetAttribute("Equipped", true)
 			char:SetAttribute("IsTransforming", false)
+			char:SetAttribute("Equipped", true)
 			char:SetAttribute("iframes", false)
-			char:SetAttribute("Mode2", true) -- keep active
+			char:SetAttribute("Mode2", true) 
 			EquipDebounce[Identifier] = false
 
 

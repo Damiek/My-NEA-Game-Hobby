@@ -24,7 +24,7 @@ local HelpfulModule = require(SSModules.Other.Helpful)
 local StunHandler = require(SSModules.Other.StunHandlerV2)
 local BoneModule = require(SSModules.Element.Bone)
 local Hitboxes_Module = require(SSModules.Hitboxes.VolumeHitboxes)
-local Dodgeeffects = require(SSModules.Weapons.DodgeEffectModule)
+
 
 
 
@@ -82,12 +82,17 @@ function module.Normal_Hitbox(char,weapon,eHum,Hit,...)
 
 		if Dodges > 1 then
 			eChar:SetAttribute("Dodges",Dodges -1)
+			print("Dmg not done as " .. char.Name .. " had a dodge")
+			eChar:SetAttribute("InCombat",true)
 
 		elseif char:GetAttribute("Element") == "Bone" and char:GetAttribute("Mode2",true) then
 			handleKarmaDamage(eChar,eHum,damage,Karma)
+			eChar:SetAttribute("InCombat",true)
 			return handleKarmaDamage	
+			
 		else
 			eHum:TakeDamage(damage)
+			eChar:SetAttribute("InCombat",true)
 			local KarmaDamage = 0
 			if player then 
 				UI_Update:FireClient(player, KarmaDamage, eHum.Health, eHum.MaxHealth, damage)
@@ -106,7 +111,8 @@ function module.Normal_Hitbox(char,weapon,eHum,Hit,...)
 		ServerCombatModule.stopAnims(eHum)
 		Hitboxes_Module.DestroyHitboxes(eChar)
 		if Dodges > 1 then
-			print("nope")
+		 print("Dodged hitbox VFX")
+			
 		else
 			VFX_Event:FireAllClients("CombatEffects", RS.Effects.Combat.Blood, Hit.CFrame,3)
 		end
@@ -131,7 +137,7 @@ function module.Normal_Hitbox(char,weapon,eHum,Hit,...)
 		module.BodyVelocity(char.HumanoidRootPart,char.HumanoidRootPart,Knockback,.2)
 
 		if eChar:GetAttribute("Dodges") > 1 and char:GetAttribute("Combo")>=4 then
-			Dodgeeffects.DodgeRandomTP(eChar,char)
+			BoneModule.DodgeRandomTP(eChar,char)
 
 		elseif char:GetAttribute("Combo")>=4 then
 			Knockback= Knockback*5
@@ -142,11 +148,8 @@ function module.Normal_Hitbox(char,weapon,eHum,Hit,...)
 		module.BodyVelocity(eHRP,char.HumanoidRootPart,Knockback,.2)
 
 
-		if eChar:GetAttribute("Dodges") > 1 then
-
-		else
-			StunHandler.Stun(eHum,stunTime)
-		end
+		StunHandler.Stun(eHum,stunTime)
+		
 
 	end
 

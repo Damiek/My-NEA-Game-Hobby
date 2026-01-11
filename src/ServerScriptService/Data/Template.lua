@@ -1,7 +1,9 @@
 return {
-	General_PlayerInfo={
+	GENARAL_PLAYER_INFO={
 		IsAdmin = false,
 		Bank = {},
+		BankCash = 0,
+		Banned = false,
 	},
 	
 	SLOT_A = {
