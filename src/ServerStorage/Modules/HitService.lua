@@ -3,6 +3,7 @@ local module = {}
 local RS = game:GetService("ReplicatedStorage")
 local SS = game:GetService("ServerStorage")
 local StarterPlayer = game:GetService("StarterPlayer") 
+local ServerScriptService = game:GetService("ServerScriptService")
 local SoundService = game:GetService("SoundService") 
 local Debris = game:GetService("Debris")
 
@@ -24,9 +25,11 @@ local HelpfulModule = require(SSModules.Other.Helpful)
 local StunHandler = require(SSModules.Other.StunHandlerV2)
 local BoneModule = require(SSModules.Element.Bone)
 local Hitboxes_Module = require(SSModules.Hitboxes.VolumeHitboxes)
+local DataManager = require(ServerScriptService.Data.Modules.DataManager)
 
-
-
+--- Math varibles  DO NOT TOUCH THIS WILL EFFECT ALL WEAPON SCALING
+local P_Cap = 80 -- This where the Plateau  for dmg drop off starts
+local k = 0.2 -- This is the rate of the drop off
 
 
 

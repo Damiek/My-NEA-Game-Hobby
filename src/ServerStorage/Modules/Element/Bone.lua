@@ -101,7 +101,6 @@ function Bone.DodgeRandomTP(Target, Attacker)
 		return targetRoot.Position -- fallback
 	end
 
-	-- 🚀 Teleport target
 	targetRoot.CFrame = CFrame.new(getValidPosition())
 end
 
@@ -145,7 +144,7 @@ function Bone.applyKarmaDot(targetHumanoid, initialKarma, baseDamage)
 	local maxKarma = 50
 	local karmaDecayRate = 2  -- Karma decreases over time
 
-	-- Run a controlled loop using task.spawn() to avoid performance drops
+	
 	task.spawn(function()
 		while totalDamage < baseDamage and karma > 0 and targetHumanoid and targetHumanoid.Health > 0 do
 			-- Apply damage

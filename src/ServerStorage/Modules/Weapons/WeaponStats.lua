@@ -2,6 +2,7 @@ local module = {}
 local info ={
 	["Fists"]={
 		Damage = 8,
+		Scaling = 5,
 		BlockDmg = 6.6,
 		Knockback =4,
 		RagdollTime =1.2,
@@ -14,6 +15,7 @@ local info ={
 	
 	["Fractured_Kunai"]={
 		Damage = 15,
+		Scaling = 7,
 		BlockDmg = 6.6,
 		Knockback =5,
 		RagdollTime =1.2,
@@ -25,6 +27,7 @@ local info ={
 	 
 	["Katana"]={
 		Damage = 10,
+		Scaling = 7,
 		BlockDmg = 10,
 		Knockback =5,
 		RagdollTime =1.2,
@@ -36,6 +39,7 @@ local info ={
 	
 	["DrakeFang"]={
 		Damage = 15,
+		Scaling = 9,
 		BlockDmg = 12,
 		Knockback =5,
 		RagdollTime =1.2,
@@ -47,6 +51,7 @@ local info ={
 
 	["TwinSpears"]={
 		Damage = 15,
+		Scaling = 9,
 		BlockDmg = 12,
 		Knockback =5,
 		RagdollTime =1.2,
@@ -59,6 +64,7 @@ local info ={
 	
 	["Shooting Star"]={
 		Damage = 25,
+		Scaling = 8,
 		BlockDmg = 25,
 		Knockback = 8,
 		RagdollTime =1.5,	
