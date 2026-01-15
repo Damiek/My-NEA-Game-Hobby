@@ -64,6 +64,15 @@ return {
 		Unlocked_Classes ={},
 		Disabled_Classes = {},
 		Disabled_Skills = {},
+		Accessories = {
+			Hat = "",
+            Face = "",
+            Torso = "",
+            Legs = "",
+            Artefacts = "",
+            Rings = "",
+            Collar = ""
+		},
 
 
 

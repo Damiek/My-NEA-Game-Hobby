@@ -170,7 +170,7 @@ function module.Normal_Hitbox(char,weapon,eHum,Hit,...)
 
 
         if isCrit then 
-			VFX_Event:FireAllClients("Highlight",eChar,.5,Color3.fromRGB(255, 0, 0),Color3.fromRGB(255, 255, 255))
+			VFX_Event:FireAllClients("Highlight",eChar,.5,Color3.fromRGB(255, 0, 0),Color3.fromRGB(255, 0, 0))
           
 		else	
 			VFX_Event:FireAllClients("Highlight",eChar,.5,Color3.fromRGB(255, 255, 255),Color3.fromRGB(255, 255, 255))
@@ -180,7 +180,7 @@ function module.Normal_Hitbox(char,weapon,eHum,Hit,...)
 		SoundsModule.PlaySound(WeaponSounds[weapon].Combat.Hit, eChar.Torso)
 
 		if eChar:GetAttribute("Dodges") > 1 then
-			local hitAnim = WeaponsAnimations.Scythe.Dodge["Dodge"..char:GetAttribute("Combo")] -- Replace with actual dodge animations from the twinspears
+			local hitAnim = WeaponsAnimations.TwinSpears.Dodge["Dodge"..char:GetAttribute("Combo")] -- Replace with actual dodge animations from the twinspears
 			eHum.Animator:LoadAnimation(hitAnim):Play()
 
 

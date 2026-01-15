@@ -134,7 +134,7 @@ local function doDodge()
     elseif lastSentKey == "S" or lastSentKey == "None" then
         -- Back (or Q on its own)
         direction = -hrp.CFrame.LookVector
-        multiplier = 0.8
+        multiplier = 0.75
     elseif lastSentKey == "A" then
         -- Left
         direction = -hrp.CFrame.RightVector
@@ -186,6 +186,9 @@ uis.InputBegan:Connect(function(input, gp)
 
     if input.KeyCode == Enum.KeyCode.Q then
         DodgeEvent:FireServer("Dodge",lastSentKey)
+		if lastSentKey == "None" then 
+			lastSentKey = "S"
+		end
 		local DODGE_ANIM_ID = RS.Animations.Weapons[CurrentWeapon].Dodging[lastSentKey].AnimationId	
 
         for _, anim in ipairs(hum.Animator:GetPlayingAnimationTracks()) do

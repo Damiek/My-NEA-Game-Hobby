@@ -217,7 +217,7 @@ DodgeEvent.OnServerEvent:Connect(function(plr, action, direction)
 			end
 		end)
 
-		task.delay(2.5, function()
+		task.delay(3, function()
 			DodgeDebounce[plr] = false
 		end)
 

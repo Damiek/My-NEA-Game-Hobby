@@ -1,9 +1,48 @@
+
 local DataManager = {}
 
 
 -- Store profiles from  ProfileStore
 DataManager.Profiles = {}
 
+function DataManager.IncreaseStat(plr,statName)
+    local profile = DataManager.Profiles[plr]
+    if profile then
+        local char = plr.Character
+        local currentSlot = char:GetAttribute("CurrentSlot")
+        local currentValue = profile.Data[currentSlot][statName]
+        profile.Data[currentSlot][statName] = currentValue + 1
+    end
+end
+
+function DataManager.ChangeElemment(plr,newValue)
+    local profile = DataManager.Profiles[plr]
+    if profile then
+        local char = plr.Character
+        local currentSlot = char:GetAttribute("CurrentSlot")
+        profile.Data[currentSlot].Element = newValue
+    end
+    
+end
+
+function DataManager.AddExperience(plr,amount)
+    local profile = DataManager.Profiles[plr]
+    if profile then
+        local char = plr.Character
+        local currentSlot = char:GetAttribute("CurrentSlot")
+        profile.Data[currentSlot].Experience = profile.Data[currentSlot].Experience + amount
+    end
+end
+
+function DataManager.UpdateAccessories(plr,accessoryType,accessoryName)
+    local profile = DataManager.Profiles[plr]
+    if profile then
+        local char = plr.Character
+        local currentSlot = char:GetAttribute("CurrentSlot")
+        profile.Data[currentSlot].Accessories[accessoryType] = accessoryName
+    end
+end
+   
 
 
 
