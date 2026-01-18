@@ -3,9 +3,14 @@ local Players = game:GetService("Players")
 
 local Hitboxes = {}
 Hitboxes.ActiveHitboxes = {}
+local CONFIG ={
+    Transparency = 0.75,
+	Color = Color3.new(1, 0, 0)
+
+}
 
 
-local function getUniqueId(char:Model)
+local function getUniqueId(char)
 	local uid = char.Humanoid:FindFirstChild("UniqueId")
 	local UID_Value = uid.Value
 	return UID_Value
@@ -32,8 +37,8 @@ function Hitboxes.NormalHitBox(Size: Vector3, Attachment: Attachment, Character:
 	Hitbox.CFrame = Attachment.WorldCFrame 
 	Hitbox.Anchored = false
 	Hitbox.CanCollide = false
-	Hitbox.Transparency = 0.5
-	Hitbox.Color = Color3.new(1, 0, 0)
+	Hitbox.Transparency = CONFIG.Transparency
+	Hitbox.Color = CONFIG.Color
 	Hitbox.Parent = workspace.Hitboxes
 	
 
@@ -57,7 +62,6 @@ function Hitboxes.NormalHitBox(Size: Vector3, Attachment: Attachment, Character:
 		if Ehum and OnHit and not alreadyHit[Ehum] then
 			alreadyHit[Ehum] = true
 			OnHit(Ehum, part)
-			Hitbox.Color= Color3.new(0,1,0)
 		end
 	end)
 

@@ -11,19 +11,6 @@ local healthBar = healthBarGui.HealthBar
 local karmaBar = healthBarGui.KarmaBar
 
 -------------------------------------------------
--- UTILS
--------------------------------------------------
-local function clamp(value, min, max)
-	return math.max(min, math.min(max, value))
-end
-
--------------------------------------------------
--- STATE
--------------------------------------------------
-local lastHealth = humanoid.Health
-local maxHealth = humanoid.MaxHealth
-
--------------------------------------------------
 -- TWEENS
 -------------------------------------------------
 local tweenFast = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -32,79 +19,61 @@ local tweenSlow = TweenInfo.new(0.75, Enum.EasingStyle.Quad, Enum.EasingDirectio
 -------------------------------------------------
 -- CORE UPDATE FUNCTION
 -------------------------------------------------
-local function applyBars(newHealth, oldHealth, useKarma)
-	local healthPercent = clamp(newHealth / maxHealth, 0, 1)
-	local oldPercent = clamp(oldHealth / maxHealth, 0, 1)
+local function applyBars(useKarma)
+    -- Always pull fresh values to prevent "overshooting" or scaling issues
+    local currentHealth = humanoid.Health
+    local maxHealth = humanoid.MaxHealth
+    
+    -- Ensure we never divide by zero and clamp between 0 and 1
+    local healthPercent = math.clamp(currentHealth / maxHealth, 0, 1)
 
-	-- HEALTH BAR (instant)
-	TweenService:Create(healthBar, tweenFast, {
-		Size = UDim2.new(
-			healthPercent,
-			0,
-			healthBar.Size.Y.Scale,
-			healthBar.Size.Y.Offset
-		)
-	}):Play()
+    -- HEALTH BAR
+    TweenService:Create(healthBar, tweenFast, {
+        Size = UDim2.fromScale(healthPercent, healthBar.Size.Y.Scale)
+    }):Play()
 
-	-- KARMA BAR
-	if useKarma then
-		-- delayed decay
-		TweenService:Create(karmaBar, tweenSlow, {
-			Size = UDim2.new(
-				healthPercent,
-				0,
-				karmaBar.Size.Y.Scale,
-				karmaBar.Size.Y.Offset
-			)
-		}):Play()
-	else
-		-- instant catch-up
-		TweenService:Create(karmaBar, tweenFast, {
-			Size = UDim2.new(
-				healthPercent,
-				0,
-				karmaBar.Size.Y.Scale,
-				karmaBar.Size.Y.Offset
-			)
-		}):Play()
-	end
+    -- KARMA BAR
+    local karmaTween = useKarma and tweenSlow or tweenFast
+    TweenService:Create(karmaBar, karmaTween, {
+        Size = UDim2.fromScale(healthPercent, karmaBar.Size.Y.Scale)
+    }):Play()
 end
 
 -------------------------------------------------
--- UI EVENT (DAMAGE / KARMA)
+-- CONNECTIONS
 -------------------------------------------------
-local function updateHealthBars(karmaDamage, currentHealth, maxH, damage)
-	maxHealth = maxH or maxHealth
 
-	local newHealth = currentHealth - damage
-	lastHealth = currentHealth
-
-	local karma = char:GetAttribute("Karma") or 0
-	applyBars(newHealth, currentHealth, karma > 0)
-end
-
-Ui_Update.OnClientEvent:Connect(updateHealthBars)
-
--------------------------------------------------
--- HEALTH SYNC (NO EVENT NEEDED)
--------------------------------------------------
-humanoid.HealthChanged:Connect(function(newHealth)
-	if newHealth ~= lastHealth then
-		local karma = char:GetAttribute("Karma") or 0
-		applyBars(newHealth, lastHealth, karma > 0)
-		lastHealth = newHealth
-	end
+-- Listen for Health changes
+humanoid.HealthChanged:Connect(function()
+    local karma = char:GetAttribute("Karma") or 0
+    applyBars(karma > 0)
 end)
 
--------------------------------------------------
+-- FIX: Listen for MaxHealth changes (important for level-ups/buffs)
+humanoid:GetPropertyChangedSignal("MaxHealth"):Connect(function()
+    applyBars(false)
+end)
+
+-- UI EVENT (If triggered by server for specific damage effects)
+Ui_Update.OnClientEvent:Connect(function()
+    local karma = char:GetAttribute("Karma") or 0
+    applyBars(karma > 0)
+end)
+
 -- RESPAWN SAFETY
--------------------------------------------------
 player.CharacterAdded:Connect(function(newChar)
-	char = newChar
-	humanoid = char:WaitForChild("Humanoid")
+    char = newChar
+    humanoid = char:WaitForChild("Humanoid")
+    
+    -- Re-bind listeners to the new humanoid
+    humanoid.HealthChanged:Connect(function()
+        local karma = char:GetAttribute("Karma") or 0
+        applyBars(karma > 0)
+    end)
+    
+    humanoid:GetPropertyChangedSignal("MaxHealth"):Connect(function()
+        applyBars(false)
+    end)
 
-	lastHealth = humanoid.Health
-	maxHealth = humanoid.MaxHealth
-
-	applyBars(humanoid.Health, humanoid.Health, false)
+    applyBars(false)
 end)

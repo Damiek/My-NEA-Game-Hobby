@@ -189,6 +189,10 @@ uis.InputBegan:Connect(function(input, gp)
 		if lastSentKey == "None" then 
 			lastSentKey = "S"
 		end
+        
+        CurrentWeapon = char:GetAttribute("CurrentWeapon")
+
+
 		local DODGE_ANIM_ID = RS.Animations.Weapons[CurrentWeapon].Dodging[lastSentKey].AnimationId	
 
         for _, anim in ipairs(hum.Animator:GetPlayingAnimationTracks()) do
@@ -288,7 +292,7 @@ uis.InputEnded:Connect(function(input,isTyping)
 	if isTyping then return end 
 
 	if input.keyCode == Enum.KeyCode.R then
-		Moves_Event:FireServer("R Move") --- This is the moveset's Sepcial Move
+		Moves_Event:FireServer("R Move") --- This is the moveset's Special Move
 	end
 
 end)

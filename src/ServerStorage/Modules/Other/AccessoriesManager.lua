@@ -2,7 +2,7 @@ local AccessoriesManager = {}
 local RS = game:GetService("ReplicatedStorage")
 local Models = RS.Models
 local Welds = RS.Welds
-
+local Events = RS.Events
 local Tool_Folder = RS.Tools
 
 
@@ -12,6 +12,8 @@ local AccessoriesTools = Tool_Folder.Items.Accessories
 local WeldsFolder = Welds.Accessories
 
 local AcessoryWelds = {}
+
+local AccessoryEvent = Events.AccessoryEvent
 
 --[local Functions]--
 local function GetAccessory(accessoryName)
@@ -36,7 +38,10 @@ local function ReturnAccessory(char, plr : Player, OldAccessory)
         OldAccessory:Destroy()
     end
 
-    AcessoryWelds[plr][accssoryType].Part1 = nil
+    if AcessoryWelds[plr] and AcessoryWelds[plr][accssoryType] then
+        AcessoryWelds[plr][accssoryType].Part1 = nil
+    end
+    
 end
 
 
@@ -81,8 +86,10 @@ function AccessoriesManager.EquipAccessory(char, accessoryName) -- This is the e
         AcessoryWelds[plr] = {}
     end
 
-    
-    AcessoryWelds[plr][accssoryType] = WeldsFolder:FindFirstChild(accessoryName):Clone()  -- This gets the corresponding weld from ReplicatedStorage
+    if not AcessoryWelds[plr][accssoryType]  then 
+        AcessoryWelds[plr][accssoryType] = WeldsFolder:FindFirstChild(accessoryName):Clone() 
+    end
+    -- This gets the corresponding weld from ReplicatedStorage
     AcessoryWelds[plr][accssoryType].Parent = char.Accessories.Welds
     
 
@@ -105,10 +112,10 @@ function AccessoriesManager.EquipAccessory(char, accessoryName) -- This is the e
         AcessoryPairWeld.Part1 = AcessoryPair
 
     elseif accessoryName == "Torso" then
-       local sides = {["LeftSeleve"] = "Left Arm", ["RightSeleve"] = "Right Arm"}
+       local sides = {["LeftSeleve"] = "Left Arm", ["RightSeleve"] = "Right Arm"} 
         for modelName, bodyPart in pairs(sides) do
             local part = accessory:FindFirstChild(modelName)
-            if part and part:FindFirstChild("Weld") then
+            if part and part:FindFirstChild("ExtraWeld") then
                 part.Weld.Part0 = char:FindFirstChild(bodyPart)
                 part.Weld.Part1 = part
             end
@@ -118,7 +125,10 @@ function AccessoriesManager.EquipAccessory(char, accessoryName) -- This is the e
    
 
     AcessoryWelds[plr][accssoryType].Part1 = accessory -- This sets Part1 of the weld to the correct Accessory
-    AcessoryWelds[plr][accssoryType].C1 = Welds.Accessories[accessoryName].C1  -- Enables the weld to attach the accessory to the character
+    AcessoryWelds[plr][accssoryType].C0 = Welds.Accessories[accessoryName].C0 -- Enables the weld to attach the accessory to the character
+    AccessoryEvent:FireClient(plr,"RefreshAnimations") --- This fires to the client script handling walk cycles to refresh their animations
+
+    
     
 end
 
@@ -128,11 +138,13 @@ function AccessoriesManager.UnequipAccessory(char, accessoryName) -- This is the
     if accessory then
         ReturnAccessory(char, plr, accessory)
     end
+    AccessoryEvent:FireClient(plr,"RefreshAnimations") -- Same thing as before
+
 end
 
 function AccessoriesManager.cleanup(plr) -- Cleans up the welds when the player leaves
     if AcessoryWelds[plr] then
-        AcessoryWelds[plr] = nil
+        AcessoryWelds[plr] = nil 
     end
 end
 
@@ -143,7 +155,7 @@ end
     When adding new accessories,remember to create corresponding welds in ReplicatedStorage.Welds.Accessories
     Also rememeber to as an Atrribute "AccessoryType" to the accessory in ReplicatedStorage.Models.Accessories
 
-    Make sure the welds have the correct C1 values to position the accessories properly.
+    Make sure the welds have the correct C0 values to position the accessories properly.
     Also make sure special accessories like "Legs" and "Torso" that may require additional handling that within the base accessory model that the AcessoryPair or Left/Right Seleve parts have welds set up to attach to the correct body parts.
 
     I may or not add to a check that checks that for the legs accessory and makes a secondary weld to the right leg.

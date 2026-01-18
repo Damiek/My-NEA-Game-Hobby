@@ -58,7 +58,6 @@ return {
 
 
 		--- Combat information
-		Weapon = "Fists";
 		Element  = "...";
 		Unlocked_Skills = {},
 		Unlocked_Classes ={},

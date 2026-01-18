@@ -1,6 +1,7 @@
 -- [Global Varilbles]
 local RS = game:GetService("ReplicatedStorage")
 local SS = game:GetService("ServerStorage")
+local ServerScripts = game:GetService("ServerScriptService")
 local Players = game:GetService("Players")
 local SoundService = game:GetService("SoundService")
 local StarterPlayer = game:GetService("StarterPlayer")
@@ -25,6 +26,7 @@ local WeaponsStatsModule = require(SSModules.Weapons.WeaponStats)
 local Combat_Data = require(SSModules.Combat.Data.CombatData)
 local Mode_Module = require(SSModules.Combat.Mode_Module)
 local ServerCombatModule = require(SSModules.CombatModule)
+local DataManager = require(ServerScripts.Data.Modules.DataManager)
 
 -- Local Tables
 local Welds = Combat_Data.Welds
@@ -42,16 +44,24 @@ local DodgeCanCancel = {}
 local DodgeIsCancelling = {}
 
 Players.PlayerAdded:Connect(function(plr)
-	plr.CharacterAdded:Connect(function(char)
-		local torso = char.Torso
-		char:SetAttribute("CurrentWeapon", "Fists")
-		char:SetAttribute("Element", "Astral")
-		char:SetAttribute("InCombat", false)
-		char:SetAttribute("Dodges", 0)
-		char.Parent = workspace.Characters
-		HelpfullModule.ChangeWeapon(plr, char, torso)
-	end)
+    local char = plr.Character  or plr.CharacterAdded:Wait()
 
+    local profile
+    while true do
+		profile = DataManager.Profiles[plr]
+        if profile then break end
+        task.wait(0.1)
+    end
+
+
+	local torso = char.Torso
+	char:SetAttribute("CurrentWeapon", "Fists")
+	char:SetAttribute("Element", "Bone")
+	char:SetAttribute("InCombat", false)
+	char:SetAttribute("Dodges", 0)
+	char.Parent = workspace.Characters
+	HelpfullModule.ChangeWeapon(plr, char, torso)
+	
 	plr.CharacterAppearanceLoaded:Connect(function(char)
 		for i, v in pairs(char:GetDescendants()) do
 			if v.Parent:IsA("Accessory") and v:IsA("Part") then
@@ -159,7 +169,7 @@ DodgeEvent.OnServerEvent:Connect(function(plr, action, direction)
 
 	local function setCollisions(state)
 		for _, part in pairs(char:GetChildren()) do
-			if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+			if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" and part.Name ~= char:GetAttribute("CurrentWeapon") then
 				part.CanCollide = state
 			end
 		end
@@ -218,6 +228,7 @@ DodgeEvent.OnServerEvent:Connect(function(plr, action, direction)
 		end)
 
 		task.delay(3, function()
+
 			DodgeDebounce[plr] = false
 		end)
 

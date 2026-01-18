@@ -114,6 +114,7 @@ local WeaponArsenal = {
 	"Judgement",
 	"Fang",
 	"DrakeFang",
+	"Glock,"
 }
 
 

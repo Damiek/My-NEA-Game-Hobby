@@ -1,4 +1,9 @@
+local RS = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+
+local Events = RS.Events
+local AccessoryEvent = Events.AccessoryEvent
+
 local plr = game.Players.LocalPlayer
 local char = plr.Character or plr.CharacterAdded:Wait()
 local HRP = char:WaitForChild("HumanoidRootPart")
@@ -58,6 +63,12 @@ char:GetAttributeChangedSignal("CurrentWeapon"):Connect(UpdateWalkTracks)
 char:GetAttributeChangedSignal("Equipped"):Connect(UpdateWalkTracks)
 char:GetAttributeChangedSignal("IsLow"):Connect(UpdateWalkTracks)
 char:GetAttributeChangedSignal("InCombat"):Connect(UpdateWalkTracks)
+AccessoryEvent.OnClientEvent:Connect(function(action)
+    if action == "RefreshAnimations" then 
+        UpdateWalkTracks()
+    end
+    
+end)
 -- Initial Load
 UpdateWalkTracks()
 

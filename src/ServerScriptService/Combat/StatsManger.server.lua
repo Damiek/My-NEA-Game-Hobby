@@ -8,17 +8,8 @@ local DataManager = require(ServerScriptService.Data.Modules.DataManager)
 
 
 --- Functions
-local function updatePlayerStats(char)
-	local plr = Players:GetPlayerFromCharacter(char)
-	if not plr then return end
-
-	local profile = DataManager.Profiles[plr]
-	if not profile then return end
-
-	local CurrentSlot = char:GetAttribute("CurrentSlot")
-	for statName, value in pairs(profile.Data[CurrentSlot].STAT_POINTS) do 
-		char:SetAttribute(statName, value)
-	end
+local function updatePlayerStats(plr,char,Stat)
+	DataManager.IncreaseStat(plr, Stat)
 end
 
 
@@ -34,7 +25,7 @@ Players.PlayerAdded:Connect(function(plr)
 	
 	local char = plr.Character
 
-	print(DataManager.Profiles[plr])
+	
 	local CurrentSlot = char:GetAttribute("CurrentSlot")
 	for statName, value in pairs(profile.Data[CurrentSlot].STAT_POINTS) do 
 		char:SetAttribute(statName, value)

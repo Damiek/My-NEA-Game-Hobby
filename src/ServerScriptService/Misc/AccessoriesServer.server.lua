@@ -1,4 +1,4 @@
-local EncodingService = game:GetService("EncodingService")
+
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 local SS = game:GetService("ServerStorage")
@@ -24,6 +24,11 @@ Players.PlayerAdded:Connect(function(plr)
 		profile = DataManager.Profiles[plr]
         if profile then break end
         task.wait(0.1)
+    end
+
+    while profile.Data[currentSlot] == nil do
+        task.wait()
+        currentSlot = char:GetAttribute("CurrentSlot")
     end
 
     for accessoryType, accessoryName in pairs(profile.Data[currentSlot].Accessories) do

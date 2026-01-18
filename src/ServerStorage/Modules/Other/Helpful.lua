@@ -59,8 +59,8 @@ function module.ChangeWeapon(plr,char,torso)
 		Weapon.HiltWeld.Part0 = char["Left Arm"]
 		Weapon.HiltWeld.Part1 = Weapon.Hilt
 	end
+    Welds[plr] = WeaponsWeld[currentWeapon].IdleWeaponWeld:Clone()
 
-	Welds[plr] = WeaponsWeld[currentWeapon].IdleWeaponWeld:Clone()
 	Welds[plr].Parent = torso
 	Welds[plr].Part0 = torso
 	Welds[plr].Part1 = Weapon
