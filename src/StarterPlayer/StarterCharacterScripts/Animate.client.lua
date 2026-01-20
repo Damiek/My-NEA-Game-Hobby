@@ -228,5 +228,21 @@ local function onKeyRelease(Key, isTyping)
 	end
 end
 
+char:GetAtrributeChangedSignal("Equipped"):Connect(function()
+ selectSprintAnim()   
+end)
+
+
+local function OnCharStateChanged()
+    if not canSprint() or HRP.Anchored then 
+        if isSprinting then toggleSprintState() end
+    end
+end
+
+
 uis.InputBegan:Connect(onKeyPress)
 uis.InputEnded:Connect(onKeyRelease)
+char:GetAtrributeChangedSignal("Attacking"):Connect(OnCharStateChanged)
+char:GetAtrributeChangedSignal("Stunned"):Connect(OnCharStateChanged)
+char:GetAtrributeChangedSignal("IsBlocking"):Connect(OnCharStateChanged)
+

@@ -160,7 +160,6 @@ function module.Normal_Hitbox(char,weapon,eHum,Hit,...)
 
 
 		ServerCombatModule.stopAnims(eHum)
-		Hitboxes_Module.DestroyHitboxes(eChar)
 		if Dodges > 1 then
 		 print("Dodged hitbox VFX")
 			

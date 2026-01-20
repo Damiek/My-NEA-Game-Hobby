@@ -72,6 +72,7 @@ function module.Attack(char)
 	local SwingEffect = WeaponEffects[currentWeapon].Swing["Swing" .. char:GetAttribute("Combo")]
 	local SwingAnim = ServerCombatModule.getSwingAnims(char, currentWeapon)
 	local playSwingAnimation = hum.Animator:LoadAnimation(SwingAnim)
+	local swingReset = WeaponStats.SwingReset
 	
 	if Connections[Identifier] then
 		for _, conn in pairs(Connections[Identifier]) do
@@ -106,14 +107,27 @@ function module.Attack(char)
 		VolumeHitbox.DestroyHitboxes(char)
 
 		char:SetAttribute("Swing", false)
-		HelpfullModule.ResetMobility(char)
-		local swingReset = WeaponStats.SwingReset
 
-		task.delay(swingReset * 0.5, function()
-			char:SetAttribute("Attacking", false)
-		end)
+        if char:GetAttribute("Combo") == MaxCombo then 
+			task.wait(1.1)
+        else 
+			task.wait(swingReset)
+        end
+
+		
+		char:SetAttribute("Attacking", false)
+		
 		Connections[Identifier].HitEnd:Disconnect()
 		Connections[Identifier].HitEnd = nil
+	end)
+
+
+	playSwingAnimation.Stopped:Connect(function()
+		VolumeHitbox.DestroyHitboxes(char)
+
+		if not char:GetAttribute("Swing") and not char:GetAttribute("IsBlocking") then 
+			HelpfullModule.ResetMobility(char)
+		end
 	end)
 
 
@@ -121,6 +135,9 @@ function module.Attack(char)
 	playSwingAnimation:Play()
 	VFX_Event:FireAllClients("SwingEffect", SwingEffect, char)
 	SoundsModule.PlaySound(WeaponSounds[currentWeapon].Combat.Swing, torso)
+
+
+	if plr then VFX_Event:FireClient(plr,"CustomShake",1,2,0,.7) end
 end
 
 return module
