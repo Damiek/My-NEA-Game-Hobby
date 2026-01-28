@@ -110,7 +110,7 @@ function module.Attack(char)
 		char:SetAttribute("Swing", false)
 
         if char:GetAttribute("Combo") == MaxCombo then 
-			task.wait(1)
+			task.wait(1.1)
         else 
 			task.wait(swingReset)
         end
@@ -145,8 +145,8 @@ function module.CancelAttack(char)
 	if not char then return end
 	char:SetAttribute("Attacking", false)
 	char:SetAttribute("Swing", false)
-	VolumeHitbox.DestroyHitboxes(char)
 	ServerCombatModule.stopAnims(char.Humanoid)
+	VolumeHitbox.DestroyHitboxes(char)
 	HelpfullModule.ResetMobility(char)
 end
 

@@ -16,7 +16,7 @@ local VFX_Event = Events.VFX
 
 local SoundsModule = require(RS.Modules.Combat.SoundsModule)
 local ServerCombatModule=require(SSModules.CombatModule)
-local WeaponsStatsModule = require(SSModules.Weapons.WeaponStats)
+local WeaponsStatsModule = require(SSModules.Dictionaries.WeaponStats)
 local HelpfulModule = require(SSModules.Other.Helpful)
 local StunHandler = require(SSModules.Other.StunHandlerV2)
 local BoneModule = require(SSModules.Element.Bone)
