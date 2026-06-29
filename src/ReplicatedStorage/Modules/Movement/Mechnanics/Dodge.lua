@@ -3,7 +3,6 @@ local RS = game:GetService("ReplicatedStorage")
 local RSModules = RS.Modules
 local MovementTypes = require(RSModules.Movement.Objects.Movement.Types)
 local ClientHelpful = require(RSModules.ClientHelpfull)
-local sprint = require(RSModules.Movement.Mechnanics.Sprinting)
 local cam = workspace.CurrentCamera
 
 local WeaponAnims = RS.Animations.Weapons
@@ -17,7 +16,10 @@ local DodgeCoolDowns = {}
 local CancelCoolDown = {}
 
 local function CalculateDodgeSpeed(MovementObj: MovementTypes.MovementObj, isAir: boolean): number
-	return CONFIG.DEFAULT_DASH_SPEED
+	return CONFIG.DEFAULT_DASH_SPEED 
+	-- here i  need to confiogure that the dodges can actually go slighty further in the air also 
+	--while i am still on the tppiv of air doodgues i also need to remember to make the the dodger linger on thje aior for a bit
+	-- .. this gives the the ablity to properly aim where they in tend to go - though this might only to apply to dodgeing after a movement option
 end
 
 local function Get3DMovement(MovementObj: MovementTypes.MovementObj)
