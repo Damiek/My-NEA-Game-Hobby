@@ -21,7 +21,6 @@ local Mode_Module = require(SSModules.Combat.Mode_Module)
 local PlrObjectService = require(SSModules.Objects.plr)
 local BlockModule = require(ServerStorage.Modules.BlockModule)
 local ParryModule = require(ServerStorage.Modules.Parrying)
-local DodgeModule = require(ServerStorage.Modules.DodgeModule)
 local EquipModule = require(ServerStorage.Modules.Combat.EquipModule)
 
 -- Local Tables
@@ -49,24 +48,6 @@ WeaponsEvent.OnServerEvent:Connect(function(plr, action)
 	end
 end)
 
-DodgeEvent.OnServerEvent:Connect(function(plr, action, direction)
-	local char = plr.Character
-	if not char then
-		return
-	end
-
-	local hum = char:FindFirstChild("Humanoid")
-	local hrp = char:FindFirstChild("HumanoidRootPart")
-	if not hum or not hrp then
-		return
-	end
-
-	if action == "Dodge" then
-		DodgeModule.Dodge(char, direction)
-	elseif action == "DodgeCancel" then
-		DodgeModule.DodgeCancel(char)
-	end
-end)
 
 BlockingEvent.OnServerEvent:Connect(function(plr, action)
 	local char = plr.Character

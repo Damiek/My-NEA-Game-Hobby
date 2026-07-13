@@ -7,7 +7,7 @@ local SFX = game:GetService("SoundService")
 local RunService = game:GetService("RunService")
 local StarterPlayer = game:GetService("StarterPlayer")
 local TS = game:GetService("TweenService")
-local ContextActionService = game:GetService("ContextActionService")
+
 
 local SoundsModule = require(RS.Modules.Combat.SoundsModule)
 local Cast = require(RS.Modules.Cast)
@@ -122,25 +122,8 @@ object:UpdateWalkTracks()
 
 
 
--- Run this on the client when Stunned attribute changes to TRUE:
-char:GetAttributeChangedSignal("Stunned"):Connect(function()
-    if char:GetAttribute("Stunned") == true then
-        -- Completely unbind default Roblox character moving actions 
-        ContextActionService:BindActionAtPriority(
-            "FreezeInput", 
-            function() return Enum.ContextActionResult.Sink end, 
-            false, 
-            3000, 
-            Enum.PlayerActions.CharacterForward, 
-            Enum.PlayerActions.CharacterBackward, 
-            Enum.PlayerActions.CharacterLeft, 
-            Enum.PlayerActions.CharacterRight
-        )
-    else
-        -- Unbind it when stun falls off to give them control back
-        ContextActionService:UnbindAction("FreezeInput")
-    end
-end)
+
+
 
 -------------------------------------------------
 -- WALL CLIMB
@@ -299,7 +282,7 @@ UIS.InputBegan:Connect(function(input, isTyping)
             end
             LastKeyPressTime = currentTime
         end
-    elseif key == Enum.KeyCode.LeftAlt then
+    elseif key == Enum.KeyCode.LeftShift then
         Sprint.ExToggle(object)
     elseif key == Enum.KeyCode.S then
         if IsHoldingLedge then

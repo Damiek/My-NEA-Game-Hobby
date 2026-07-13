@@ -287,11 +287,11 @@ function module.Mode2(char, npc)
 					mf = char:GetAttribute("MF")
 					maxMF = char:GetAttribute("MaxMF")
 					if mf and mf < maxMF then
+						char:SetAttribute("MF", math.min(mf + 2.5, maxMF))
+					else
 						while char:GetAttribute("AstralDodgeActive") do
 							task.wait(0.1)
 						end
-						char:SetAttribute("MF", mf + 2.5)
-					else
 						module.Revert(char)
 						return
 					end

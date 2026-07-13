@@ -276,7 +276,7 @@ local adornment_form = {
 
 local get_CFrame = {
 	["Instance"] = function(point)
-		return point.CFrameCFrame
+		return point.CFrame
 	end,
 
 	["CFrame"] = function(point)

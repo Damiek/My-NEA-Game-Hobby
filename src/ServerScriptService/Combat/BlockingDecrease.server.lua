@@ -2,7 +2,7 @@
 --
 local SS = game:GetService("ServerStorage")
 local RS = game:GetService("ReplicatedStorage")
-local Timer = require(SS.Modules.Packages.Timer)
+local Timer = require(RS.Modules.Packages.Timer)
 local StatusEffectsModule = require(SS.Modules.StatusEffectsModule)
 local CombatData = require(SS.Modules.Combat.Data.CombatData)
 local PLRModule = require(SS.Modules.Objects.plr)

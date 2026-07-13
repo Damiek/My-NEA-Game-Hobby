@@ -56,15 +56,14 @@ function module.ChangeWeapon(plr, char, torso)
 
 	Weapon.Parent = char
 
-	if Weapon:FindFirstChild("SecondWeapon") then
-		Weapon.SecondWeld.Part0 = char["Left Arm"]
-		Weapon.SecondWeld.Part1 = Weapon.SecondWeapon
+	if Weapon:FindFirstChild("SecondWeapon", true) then
+		print(Weapon[currentWeapon].SecondWeapon)
+		print("LetsWeld")
+		Weapon[currentWeapon].SecondWeld.Part0 = char["Left Arm"]
+		Weapon[currentWeapon].SecondWeld.Part1 = Weapon[currentWeapon].SecondWeapon
 	end
 
-	if Weapon:FindFirstChild("Hilt") then
-		Weapon.HiltWeld.Part0 = char["Left Arm"]
-		Weapon.HiltWeld.Part1 = Weapon.Hilt
-	end
+	
 	Welds[plr] = WeaponsWeld[currentWeapon].IdleWeaponWeld:Clone()
 
 	Welds[plr].Parent = torso
@@ -270,6 +269,7 @@ function module.ManageStamina(char, action)
         if Stamina >= 20 then
             Fail = false
             char:SetAttribute("Stamina", (Stamina - 20))
+			print(char:GetAttribute("Stamina"))
             return Fail
         else
             Fail = true

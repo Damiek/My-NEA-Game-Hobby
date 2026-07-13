@@ -1,4 +1,5 @@
 
+local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local uis = game:GetService("UserInputService")
@@ -10,6 +11,7 @@ local Dodge = require(RS.Modules.Movement.Mechnanics.Dodge)
 
 
 local Events = RS.Events
+
 
 local blockingEvent =  Events.Blocking
 local Transform = Events.Tranform
@@ -245,8 +247,8 @@ end)
 --- Swinging and Blink
 
 local function MouseCast()
-	local mousepos = uis:GetMouseLocation()
-	local ray = workspace.CurrentCamera:ViewportPointToRay(mousepos.X, mousepos.Y)
+	local mousePos = uis:GetMouseLocation()
+	local ray = workspace.CurrentCamera:ViewportPointToRay(mousePos.X, mousePos.Y)
 
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterDescendantsInstances = {char}
@@ -254,57 +256,104 @@ local function MouseCast()
 
 	local result = workspace:Raycast(ray.Origin, ray.Direction * 100, raycastParams)
 
-	if result and result.Instance and result.Instance.Parent:FindFirstChildOfClass("Humanoid") then
-		return result.Instance.Parent
-	else
+	if not result then
 		return nil
 	end
+
+	local model = result.Instance:FindFirstAncestorOfClass("Model")
+	if model and model:FindFirstChildOfClass("Humanoid") then
+		return model
+	end
+
+	return nil
 end
 
 
-
-
-local function EnemyCheck(char)
-	if not char or not char:FindFirstChildOfClass("Humanoid") then return false end
-	local Eplr = game:GetService("Players"):GetPlayerFromCharacter(char)
-	local MovementObj = nil
-	local hum = char:FindFirstChildOfClass("Humanoid")
-	if not hum then return false end
-
-	if Eplr and Eplr~= plr then
-		MovementObj = Movement.GetMovementObj(Eplr)
-		if MovementObj.IsActing.Climbing then return true end
-		if MovementObj.IsActing.WallRunning then return true end
-		if MovementObj.IsActing.Dodging and MovementObj.InfoTable.Dodge.Type == "Airdodge" then return true end
-		if AirBorneStates[hum:GetState()] then return true end
+local function EnemyCheck(character)
+	if not character then
 		return false
-
-	elseif char then
-		if char:GetAttribute("IsWallRunning") then  print("wallrun") return true end
-		if char:GetAttribute("IsClimbing") then print("climbing") return true end
-		if char:GetAttribute("Dodging") and char:GetAttribute("DodgeType") == "Airdodge" then print("dodging") return true end
-		if AirBorneStates[hum:GetState()] then return true end
 	end
+
+	local hum = character:FindFirstChildOfClass("Humanoid")
+	if not hum then
+		return false
+	end
+
+	local enemyPlayer = Players:GetPlayerFromCharacter(character)
+
+	-- Player
+	if enemyPlayer then
+		if enemyPlayer == plr then
+			return false
+		end
+
+		local movementObj = Movement.GetMovementObj(enemyPlayer)
+		if not movementObj then
+			return false
+		end
+
+		if movementObj.IsActing.Climbing then
+			return true
+		end
+
+		if movementObj.IsActing.WallRunning then
+			return true
+		end
+
+		if movementObj.IsActing.Dodging
+			and movementObj.InfoTable.Dodge.Type == "Airdodge" then
+			return true
+		end
+
 	
+
+		return false
+	end
+
+	-- NPC
+	if character:GetAttribute("IsWallRunning") then
+		return true
+	end
+
+	if character:GetAttribute("IsClimbing") then
+		return true
+	end
+
+	if character:GetAttribute("Dodging")
+		and character:GetAttribute("DodgeType") == "Airdodge" then
+		return true
+	end
+
+
 	return false
 end
 
+
 RunService.RenderStepped:Connect(function()
-	if char:GetAttribute("IsTransforming") then return end
+	if char:GetAttribute("IsTransforming") then
+		return
+	end
+
 	local target = MouseCast()
-	if target and EnemyCheck(target) and target~= enemy then
-		enemy = target
+	local newEnemy = nil
+
+	if target and EnemyCheck(target) then
+		newEnemy = target
+	end
+
+	-- Only update the highlight when the target changes.
+	if newEnemy ~= enemy then
+		enemy = newEnemy
+
 		if enemy then
 			hl.Parent = enemy
-			hl.Adornee =nil
+			hl.Adornee = enemy
 		else
-		  hl.Parent = nil
-		  hl.Adornee = nil
+			hl.Parent = RS
+			hl.Adornee = nil
 		end
-
 	end
 end)
-
 	
 
 uis.InputBegan:Connect(function(input, gameProcessed)

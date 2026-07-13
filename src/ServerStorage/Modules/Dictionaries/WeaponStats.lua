@@ -24,7 +24,7 @@ local info = {
 		StunTime = 1.5,
 		BlockingWalkSpeed = 6,
 		ChipDamage = 5,
-		HitboxSize = Vector3.new(4, 5, 6),
+		HitboxSize = Vector3.new(6, 6, 6),
 		HitboxOffset = CFrame.new(0, 0, -2.3),
 	},
 
@@ -38,7 +38,7 @@ local info = {
 		StunTime = 1.1,
 		BlockingWalkSpeed = 6,
 		ChipDamage = 0,
-		HitboxSize = Vector3.new(4, 5, 6),
+		HitboxSize = Vector3.new(6, 6, 6),
 		HitboxOffset = CFrame.new(0, 0, -2.3),
 	},
 
@@ -52,7 +52,7 @@ local info = {
 		StunTime = 1.1,
 		BlockingWalkSpeed = 6,
 		ChipDamage = 0,
-		HitboxSize = Vector3.new(4, 5, 6),
+		HitboxSize = Vector3.new(6, 6, 6),
 		HitboxOffset = CFrame.new(0, 0, -2.3),
 	},
 
@@ -66,12 +66,12 @@ local info = {
 		StunTime = 1.1,
 		BlockingWalkSpeed = 6,
 		ChipDamage = 0,
-		HitboxSize = Vector3.new(4, 5, 6),
+		HitboxSize = Vector3.new(6, 5, 9),
 		HitboxOffset = CFrame.new(0, 0, -2.3),
 	},
 
 	["ShootingStar"] = {
-		Damage = 30,
+		Damage = 21,
 		Scaling = 10,
 		BlockDmg = 25,
 		Knockback = 6,

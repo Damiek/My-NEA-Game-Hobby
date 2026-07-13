@@ -816,6 +816,8 @@ function module.UI_inject(targetFrame, text, fontName, options)
 									DialogueBindable:Fire("PlayAnimation", emotion)
 									emotionFired = true -- ← fires once, first character only
 								end
+
+								
 							end
 						end
 

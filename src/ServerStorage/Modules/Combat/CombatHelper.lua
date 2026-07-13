@@ -211,10 +211,15 @@ function module.CancelAttack(char, npc)
 		pcall(function()
 			HitBoxes[Identifier]:Stop()
 		end)
-		HitBoxes[Identifier] = nil -- Clear reference so it can't be stopped again
+		HitBoxes[Identifier] = nil 
 	end
 	HelpfullModule.ResetMobility(char)
 	VFX_Event:FireAllClients("DestroyVFX", char, SwingEffect)
+	
+	local sound = char:FindFirstChild("Swing",true)
+	if sound then
+		sound:Destroy()
+	end
 end
 
 function module.RevengeCounter(char: Model, npc)
@@ -384,12 +389,13 @@ function module.Blink(char, npc, target)
 	--SoundsModule.PlaySound(WeaponSounds[currentWeapon].Combat.Blink, HRP) will uncomment when blink sound is added
 	local Size = Vector3.new(5, 5, 5)
 	local BlinkHitbox = MuchachoHitbox.CreateHitbox()
-	BlinkHitbox.WorldCFrame = HRP.CFrame 
+	BlinkHitbox.CFrame = HRP
 	BlinkHitbox.Size = Size
 	BlinkHitbox.Offset =  CFrame.new(0, -2, 0)
 	local params = OverlapParams.new()
     params.FilterDescendantsInstances = {char}
     params.FilterType = Enum.RaycastFilterType.Exclude
+	BlinkHitbox.DetectionMode = "HitOnce"
 	BlinkHitbox:Start()
 
 	BlinkHitbox.Touched:Connect(function(hit, humanoid)

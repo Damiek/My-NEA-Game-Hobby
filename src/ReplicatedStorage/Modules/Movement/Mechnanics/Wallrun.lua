@@ -1,19 +1,34 @@
 local Wallrun = {}
+local Debris = game:GetService("Debris")
 local RS = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local RSModules = RS.Modules
 
 local Cast = require(RSModules.Cast)
 local MovementTypes = require(RSModules.Movement.Objects.Movement.Types)
+local FlowManager = require(RSModules.Movement.Ultils.Flow)
+local Sprinting = require(RSModules.Movement.Mechnanics.Sprinting)
 
 local WeaponAnimations = RS.Animations.Weapons
 
 local WallrunCooldowns = {}
 
+local AnimationCache = setmetatable({}, { __mode = "k" })
 
+-- Helper function to fetch or cache animation tracks safely
+local function GetCachedTrack(MovementObj, Hum, weapon, animType)
+	if not AnimationCache[MovementObj] then
+		AnimationCache[MovementObj] = {}
+	end
 
+	local cacheKey = weapon .. "_" .. animType
+	if not AnimationCache[MovementObj][cacheKey] then
+		local animAsset = WeaponAnimations[weapon].Movement[animType]
+		AnimationCache[MovementObj][cacheKey] = Hum.Animator:LoadAnimation(animAsset)
+	end
 
-
+	return AnimationCache[MovementObj][cacheKey]
+end
 
 local function WallChecker(char)
 	local HRP = char.HumanoidRootPart
@@ -65,16 +80,32 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 	if MovementObj.IsActing.IsSprinting then
 		WallrunSpeed = 80
 	elseif MovementObj.IsActing.IsEXSprinting then
-		WallrunSpeed = 90
+		WallrunSpeed = 85
 	end
+
+	local Sprintflag = MovementObj.IsActing.IsSprinting or MovementObj.IsActing.IsEXSprinting
+	local finalespeed = FlowManager.OnWallRunStart(MovementObj, WallrunSpeed, Sprintflag)
+
+	WallrunSpeed = finalespeed
 
 	local conn
 
 	local Normal = hit.Normal.Unit
-	
 
-	local R_anim = Hum.Animator:LoadAnimation(WeaponAnimations[CurrentWeapon].Movement.WallrunR)
-	local L_anim = Hum.Animator:LoadAnimation(WeaponAnimations[CurrentWeapon].Movement.WallrunL)
+	local R_anim = GetCachedTrack(MovementObj, Hum, CurrentWeapon, "WallrunR")
+	local L_anim = GetCachedTrack(MovementObj, Hum, CurrentWeapon, "WallrunL")
+
+	if AnimationCache[MovementObj] then
+		local hopR = AnimationCache[MovementObj][CurrentWeapon .. "_WallhopR"]
+		local hopL = AnimationCache[MovementObj][CurrentWeapon .. "_WallhopL"]
+
+		if hopR and hopR.IsPlaying then
+			hopR:Stop(0.15)
+		end
+		if hopL and hopL.IsPlaying then
+			hopL:Stop(0.15)
+		end
+	end
 
 	if math.abs(Normal.Y) > 0.2 then
 		warn("[Wallrun Module] = Normal Y failed to be in range")
@@ -95,12 +126,11 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 			Action = "Wallrun",
 		}
 
-
 		MovementObj:BarTween(infotable)
 	end
 
 	char:SetAttribute("IsWallRunning", true) -- for server to tell clients
-	MovementObj.IsActing.WallRunning = true  -- for the client to know they are wallrunning 
+	MovementObj.IsActing.WallRunning = true -- for the client to know they are wallrunning
 
 	local Att = HRP:FindFirstChild("WallRunAttachment")
 
@@ -127,10 +157,6 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 	algin.Parent = HRP
 
 	Hum.AutoRotate = false
-	
-
-
-	
 
 	if side == 1 then
 		R_anim:Play()
@@ -141,7 +167,7 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 	local duration = 20
 	local elapsed = 0
 
-	local function StopWallRun()
+	local function StopWallRun(reason)
 		conn:Disconnect()
 
 		if not MovementObj.IsActing.WallRunning then
@@ -149,7 +175,14 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 		end
 
 		WallrunCooldowns[MovementObj] = tick()
-		HRP.AssemblyLinearVelocity += Normal * 15
+
+		if reason ~= "Jump" then
+			HRP.AssemblyLinearVelocity += Normal * 15
+		end
+
+		vel.Enabled = false
+		algin.Enabled = false
+
 		vel:Destroy()
 		algin:Destroy()
 		Att:Destroy()
@@ -160,6 +193,19 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 
 		R_anim:Stop()
 		L_anim:Stop()
+
+		FlowManager.OnWallRunEnd(MovementObj, function()
+			if MovementObj.IsActing.IsEXSprinting then
+				MovementObj.IsActing.IsSprinting = false
+				Sprinting.NormalToggle(MovementObj)
+
+				MovementObj.IsActing.IsEXSprinting = false
+				Sprinting.ExToggle(MovementObj)
+			else
+				MovementObj.IsActing.IsSprinting = false
+				Sprinting.NormalToggle(MovementObj)
+			end
+		end)
 
 		MovementObj:UpdateWalkTracks()
 		MovementObj:BarTweenStop({
@@ -211,7 +257,7 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 			return
 		end
 
-		local gforce = Vector3.new(0, -workspace.Gravity *0.5, 0)
+		local gforce = Vector3.new(0, -workspace.Gravity * 0.5, 0)
 
 		vel.VectorVelocity = WallDir * WallrunSpeed + gforce * dt + entryvel * 0.15
 		algin.CFrame = CFrame.lookAt(HRP.Position, HRP.Position + WallDir, Vector3.new(0, 1, 0))
@@ -221,64 +267,92 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 	end)
 end
 
-
 function Wallrun.Start(MovementObj: MovementTypes.MovementObj)
-   local char = MovementObj.char
-   if not char then return end
-   local hum = char.Humanoid
-   if not hum then return end
-
-   if hum.FloorMaterial ~= Enum.Material.Air then
-      return
-   end
-
-   if MovementObj.IsActing.WallRunning  or MovementObj.IsActing.Climbing or MovementObj.States.IsOnWall or MovementObj.States.IsCrouching then
-      return
-   end
-
-   if WallrunCooldowns[MovementObj] and tick() - WallrunCooldowns[MovementObj] < 0.2 then
-      return
-   end
-
-   local hit, side = WallChecker(char)
-   if not hit then return end
-
-   MovementObj:ClearWalkAnims()
-
-   StartWallRun(MovementObj, hit,side)
-end
-
-function Wallrun.Jump(MovementObj: MovementTypes.MovementObj)
-	
-	if not MovementObj or not MovementObj.IsActing.WallRunning then
+	local char = MovementObj.char
+	if not char then
+		return
+	end
+	local hum = char.Humanoid
+	if not hum then
 		return
 	end
 
+	if hum.FloorMaterial ~= Enum.Material.Air then
+		return
+	end
+
+	if
+		MovementObj.IsActing.WallRunning
+		or MovementObj.IsActing.Climbing
+		or MovementObj.States.IsOnWall
+		or MovementObj.States.IsCrouching
+	then
+		return
+	end
+
+	if WallrunCooldowns[MovementObj] and tick() - WallrunCooldowns[MovementObj] < 0.2 then
+		return
+	end
+
+	local hit, side = WallChecker(char)
+	if not hit then
+		return
+	end
+
+	MovementObj:ClearWalkAnims()
+
+	StartWallRun(MovementObj, hit, side)
+end
+
+function Wallrun.Jump(MovementObj: MovementTypes.MovementObj)
+	if not MovementObj or not MovementObj.IsActing.WallRunning then
+		return
+	end
 
 	local char = MovementObj.char
 	local Hum = char.Humanoid
 	local HRP = char.HumanoidRootPart
 	local CurrentWeapon = char:GetAttribute("CurrentWeapon")
-	if not HRP then return end
-	local R_animJump = Hum.Animator:LoadAnimation(WeaponAnimations[CurrentWeapon].Movement.WallhopR)
-	local L_animJump = Hum.Animator:LoadAnimation(WeaponAnimations[CurrentWeapon].Movement.WallhopL)
-
-	MovementObj.InfoTable.Wallrun.Stop("Jump")
-	if not MovementObj.InfoTable.Wallrun.Side or not MovementObj.InfoTable.Wallrun.Normal then return end
-	local side = MovementObj.InfoTable.Wallrun.Side
-	local Normal = MovementObj.InfoTable.Wallrun.Normal	
-	local Jumppower = 50
-	local uppower = Jumppower * 2
-	local Lateral = (side== 1 and HRP.CFrame.RightVector or -HRP.CFrame.RightVector)
-
-	local jumpVect = (Normal * Jumppower) + (Lateral * 0.5) + Vector3.new(0, uppower, 0)
-	if side == 1 then
-		R_animJump:Play()
-	elseif side == -1 then
-	    L_animJump:Play()
+	if not HRP then
+		return
 	end
 
-	HRP.AssemblyLinearVelocity = jumpVect + HRP.AssemblyLinearVelocity * 0.2
+	MovementObj.InfoTable.Wallrun.Stop("Jump")
+	MovementObj:ServerRequest("WallRunJump")
+
+	FlowManager.OnMechanicJump(MovementObj, "WallRunJump")
+
+	local R_animJump = GetCachedTrack(MovementObj, Hum, CurrentWeapon, "WallhopR")
+	local L_animJump = GetCachedTrack(MovementObj, Hum, CurrentWeapon, "WallhopL")
+	local side = MovementObj.InfoTable.Wallrun.Side
+	local Normal = MovementObj.InfoTable.Wallrun.Normal
+
+	if not side or not Normal then
+		return
+	end
+
+	local Jumppower = 55
+	local uppower = Jumppower * 1.5
+	local forwardPower = Jumppower * 1.5
+
+	local jumpVect = (Normal * (Jumppower + 2)) + (HRP.CFrame.LookVector * forwardPower) + Vector3.new(0, uppower, 0)
+
+	if side == 1 then
+		R_animJump:Play(0)
+	elseif side == -1 then
+		L_animJump:Play(0)
+	end
+
+	local attachment = HRP:FindFirstChild("RootAttachment") or Instance.new("Attachment", HRP)
+
+	local lv = Instance.new("LinearVelocity")
+	lv.Attachment0 = attachment
+	lv.MaxForce = math.huge
+	lv.VectorVelocity = jumpVect
+	lv.RelativeTo = Enum.ActuatorRelativeTo.World
+	lv.Parent = HRP
+
+	Debris:AddItem(lv, 0.15)
 end
 
 return Wallrun

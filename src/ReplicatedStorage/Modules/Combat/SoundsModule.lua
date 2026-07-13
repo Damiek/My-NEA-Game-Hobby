@@ -8,4 +8,6 @@ function module.PlaySound(TargetSound, Parent)
 	
 	Debris:AddItem(Sound,5)
 end
+
+
 return module

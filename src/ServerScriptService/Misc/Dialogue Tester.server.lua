@@ -1,20 +1,19 @@
 local RS= game:GetService("ReplicatedStorage")
+local SoundService = game:GetService("SoundService")
 local Prox:ProximityPrompt = workspace.Tester.STart
 
-local DialogueParams ={
-	Range = 1000000,
-	Position = Vector3.new(0,0,0),
-	Speaker ="Tutorial",
-	Font = "MinecraftFont"
-}
 
+local DialogueParams = {
+    Speaker = "Tutorial, The Start of The End",
+    Font = "MinecraftFont",
+    Sound = SoundService.SFX.NPCs.bleep018,
+  
+}
 local DialogueParams2 ={
-	Range = 1000000,
-	Position = Vector3.new(0,0,0),
 	Speaker ="Tutorial",
-	Font = "ComicSans"
+	Font = "ComicSans",
+    Sound = SoundService.SFX.NPCs.bleep018,
 }
-
 
 task.wait(10)
 print("Yo Bro Dialouge InComing")

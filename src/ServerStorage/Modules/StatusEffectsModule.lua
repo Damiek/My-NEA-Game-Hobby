@@ -1,13 +1,12 @@
 local StatusEffectsModule = {}
 local RS = game:GetService("ReplicatedStorage")
 local SS = game:GetService("ServerStorage")
-local ServerStorage = game:GetService("ServerStorage")
 
 local SSModules = SS.Modules
 local Dictionaries = SSModules.Dictionaries
 local Effect_Dictionary = require(Dictionaries.Effect_Info)
 local Combat_Data = require(SSModules.Combat.Data.CombatData)
-local Signal = require(SSModules.Packages.Signal)
+local Signal = require(RS.Modules.Packages.Signal)
 
 
 

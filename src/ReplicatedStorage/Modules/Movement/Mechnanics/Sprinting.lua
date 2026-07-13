@@ -4,6 +4,7 @@ local TS = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local RSModules = RS.Modules
 local Types = require(RSModules.Movement.Objects.Movement.Types)
+local FlowManager = require(RSModules.Movement.Ultils.Flow)
 local AnimationsFolder = RSModules.Movement.Objects.Movement.Animations
 
 local Debounce = {}
@@ -47,7 +48,6 @@ local function selectionSprintAnim(MovementObj: Types.MovementObj)
 		return
 	end
 
-	-- Safely clean up previous sprint animation tracks before loading a new one
 	if MovementObj.InfoTable.Sprint.SprintAnim then
 		MovementObj.InfoTable.Sprint.SprintAnim:Stop(0.1)
 		MovementObj.InfoTable.Sprint.SprintAnim:Destroy()
@@ -70,7 +70,6 @@ local function selectionSprintAnim(MovementObj: Types.MovementObj)
 	MovementObj.InfoTable.Sprint.SprintAnim:Play(0.25)
 end
 
--- Helper to completely clean up and reset all sprinting states safely
 function Sprinting.ForceStopAllSprinting(MovementObj: Types.MovementObj)
 	local char = MovementObj.char
 	local Hum = char:FindFirstChildOfClass("Humanoid")
@@ -79,7 +78,7 @@ function Sprinting.ForceStopAllSprinting(MovementObj: Types.MovementObj)
 	MovementObj.IsActing.IsEXSprinting = false
 
 	if Hum and ResetSpeedCheck(MovementObj) then
-		Hum.WalkSpeed = BaseSpeed
+		FlowManager.OnSprintStop(MovementObj, BaseSpeed)
 	end
 
 	TS:Create(cam, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { FieldOfView = 70 }):Play()
@@ -107,13 +106,11 @@ function Sprinting.NormalToggle(MovementObj: Types.MovementObj)
 	end
 	Debounce[MovementObj] = true
 
-	-- IF SPRINTING: Stop everything
 	if MovementObj.IsActing.IsSprinting or MovementObj.IsActing.IsEXSprinting then
 		Sprinting.ForceStopAllSprinting(MovementObj)
 		task.wait(0.1)
 		Debounce[MovementObj] = false
 	else
-		-- IF NOT SPRINTING: Start normal sprint
 		if not Sprinting.CanSprint(MovementObj) then
 			Debounce[MovementObj] = false
 			return
@@ -122,11 +119,18 @@ function Sprinting.NormalToggle(MovementObj: Types.MovementObj)
 		MovementObj.IsActing.IsSprinting = true
 		MovementObj:ServerRequest("SprintStart")
 
+		local targetSpeed = BaseSpeed * 2
+
 		if char:GetAttribute("InCombat") and char:GetAttribute("IsLow") then
-			Hum.WalkSpeed = BaseSpeed * 1.25
-		else
-			Hum.WalkSpeed = BaseSpeed * 2
+			targetSpeed = BaseSpeed * 1.25
 		end
+		-- FLOW ENGAGEMENT
+		FlowManager.OnSprintStart(MovementObj, targetSpeed, false)
+		if MovementObj.Flow then
+			MovementObj.Flow.CurrentSpeed = targetSpeed -- Instant snap initialization
+		end
+
+		Hum.WalkSpeed = targetSpeed
 
 		TS:Create(cam, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { FieldOfView = 80 })
 			:Play()
@@ -148,57 +152,44 @@ function Sprinting.NormalToggle(MovementObj: Types.MovementObj)
 		Debounce[MovementObj] = false
 	end
 end
+
 function Sprinting.OnCharStateChanged(MovementObj: Types.MovementObj)
-    local char = MovementObj.char
-    local HRP = char:FindFirstChild("HumanoidRootPart")
-    
-    if not HRP or not char.Parent then return end
+	local char = MovementObj.char
+	local HRP = char:FindFirstChild("HumanoidRootPart")
 
-    -- If the character transitions into an illegal state or gets physically anchored
-    if not Sprinting.CanSprint(MovementObj) or HRP.Anchored then
-        
-        -- Check if they are actively using any tier of sprint
-        if MovementObj.IsActing.IsSprinting or MovementObj.IsActing.IsEXSprinting then
-            
-            -- Use a clean, single-frame force shutdown rather than fighting toggle debounces
-            MovementObj.IsActing.IsSprinting = false
-            MovementObj.IsActing.IsEXSprinting = false
+	if not HRP or not char.Parent then
+		return
+	end
 
-            local Hum = char:FindFirstChildOfClass("Humanoid")
-            if Hum and not (
-                char:GetAttribute("Stunned")
-                or char:GetAttribute("IsBlocking")
-                or char:GetAttribute("Attacking")
-                or char:GetAttribute("IsCrouching")
-                or MovementObj.IsActing.Climbing
-                or MovementObj.IsActing.WallRunning
-            ) then
-                Hum.WalkSpeed = BaseSpeed
-            end
+	if not Sprinting.CanSprint(MovementObj) or HRP.Anchored then
+		if MovementObj.IsActing.IsSprinting or MovementObj.IsActing.IsEXSprinting then
+			MovementObj.IsActing.IsSprinting = false
+			MovementObj.IsActing.IsEXSprinting = false
 
-            -- Reset Camera FOV back down smoothly
-            TS:Create(cam, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { FieldOfView = 70 }):Play()
+			local Hum = char:FindFirstChildOfClass("Humanoid")
+			if Hum and ResetSpeedCheck(MovementObj) then
+				FlowManager.OnSprintStop(MovementObj, BaseSpeed)
+			end
 
-            -- Clean up the animation tracks safely
-            if MovementObj.InfoTable.Sprint.SprintAnim then
-                MovementObj.InfoTable.Sprint.SprintAnim:Stop(0.1)
-                MovementObj.InfoTable.Sprint.SprintAnim:Destroy()
-                MovementObj.InfoTable.Sprint.SprintAnim = nil
-            end
+			TS:Create(cam, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { FieldOfView = 70 })
+				:Play()
 
-            -- Disconnect loop signals
-            if SprintConns[MovementObj] then
-                SprintConns[MovementObj]:Disconnect()
-                SprintConns[MovementObj] = nil
-            end
+			if MovementObj.InfoTable.Sprint.SprintAnim then
+				MovementObj.InfoTable.Sprint.SprintAnim:Stop(0.1)
+				MovementObj.InfoTable.Sprint.SprintAnim:Destroy()
+				MovementObj.InfoTable.Sprint.SprintAnim = nil
+			end
 
-            -- Notify server of the forced cancellation state
-            MovementObj:ServerRequest("SprintEnd")
-            MovementObj:ServerRequest("ExSprintEnd")
-            
-            MovementObj:UpdateWalkTracks()
-        end
-    end
+			if SprintConns[MovementObj] then
+				SprintConns[MovementObj]:Disconnect()
+				SprintConns[MovementObj] = nil
+			end
+
+			MovementObj:ServerRequest("SprintEnd")
+			MovementObj:ServerRequest("ExSprintEnd")
+			MovementObj:UpdateWalkTracks()
+		end
+	end
 end
 
 function Sprinting.ExToggle(MovementObj: Types.MovementObj)
@@ -215,20 +206,26 @@ function Sprinting.ExToggle(MovementObj: Types.MovementObj)
 		MovementObj.IsActing.IsEXSprinting = false
 		MovementObj:ServerRequest("ExSprintEnd")
 
-		-- Reset speed and FOV back down to standard sprint tiers smoothly
+		local targetSpeed = BaseSpeed * 4
+
 		if char:GetAttribute("InCombat") and char:GetAttribute("IsLow") then
-			Hum.WalkSpeed = BaseSpeed * 1.25
-		else
-			Hum.WalkSpeed = BaseSpeed * 2
+			targetSpeed = BaseSpeed * 2.25
 		end
-        selectionSprintAnim(MovementObj) 
+
+		-- FLOW ENGAGEMENT: Update flow target back down to normal sprint specs
+		FlowManager.OnSprintStart(MovementObj, targetSpeed, false)
+		if MovementObj.Flow then
+			MovementObj.Flow.CurrentSpeed = targetSpeed
+		end
+
+		selectionSprintAnim(MovementObj)
 		TS:Create(cam, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { FieldOfView = 80 })
 			:Play()
 
 		task.wait(0.1)
 		EX_Debounce[MovementObj] = false
 	else
-		-- IF NOT EX SPRINTING: Upgrade to ExSprint tier (must already be basic sprinting)
+		-- IF NOT EX SPRINTING: Upgrade to ExSprint tier
 		if not MovementObj.IsActing.IsSprinting or not Sprinting.CanSprint(MovementObj) then
 			EX_Debounce[MovementObj] = false
 			return
@@ -236,25 +233,26 @@ function Sprinting.ExToggle(MovementObj: Types.MovementObj)
 
 		MovementObj.IsActing.IsEXSprinting = true
 
-		if char:GetAttribute("InCombat") and char:GetAttribute("IsLow") then
-			Hum.WalkSpeed = BaseSpeed * 1.5
-		else
-			Hum.WalkSpeed = BaseSpeed * 2.8
+		local targetSpeed = (char:GetAttribute("InCombat") and char:GetAttribute("IsLow")) and (BaseSpeed * 1.5)
+			or (BaseSpeed * 2.8)
+
+		-- FLOW ENGAGEMENT FIXED: Explicitly alert the Flow engine of your upgraded speed target!
+		FlowManager.OnSprintStart(MovementObj, targetSpeed, true)
+		if MovementObj.Flow then
+			MovementObj.Flow.CurrentSpeed = targetSpeed -- Prevent slow acceleration curve gaps
 		end
+
+		Hum.WalkSpeed = targetSpeed
 
 		TS:Create(cam, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { FieldOfView = 90 })
 			:Play()
 		selectionSprintAnim(MovementObj)
 
-		-- Ticking Validation Thread: Fires and evaluates server responses
 		task.spawn(function()
 			while MovementObj.IsActing.IsEXSprinting and char.Parent do
-				-- Simply fire the server request tick
 				MovementObj:ServerRequest("ExSprintStart")
-
 				task.wait(0.5)
 
-				-- Check if the server turned off our state because we ran out of stamina
 				if char:GetAttribute("IsEXSprinting") == false then
 					Sprinting.ForceStopAllSprinting(MovementObj)
 					break

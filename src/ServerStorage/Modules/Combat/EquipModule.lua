@@ -44,7 +44,7 @@ function EquipModule.EquipWeapon(char, npc)
 
 	EquipAnims[Identifier]:GetMarkerReachedSignal("weld"):Connect(function()
 		Welds[Identifier].Part0 = rightArm
-		Welds[Identifier].C1 = WeaponsWeld[currentWeapon].HoldingWeaponWeld.C1
+		Welds[Identifier].C0 = WeaponsWeld[currentWeapon].HoldingWeaponWeld.C0
 	end)
 
 	EquipAnims[Identifier]:GetMarkerReachedSignal("Equipped"):Connect(function()
@@ -55,7 +55,7 @@ function EquipModule.EquipWeapon(char, npc)
 	EquipAnims[Identifier].Stopped:Connect(function()
 		if char:GetAttribute("Stunned") then
 			Welds[Identifier].Part0 = rightArm
-			Welds[Identifier].C1 = WeaponsWeld[currentWeapon].HoldingWeaponWeld.C1
+			Welds[Identifier].C0 = WeaponsWeld[currentWeapon].HoldingWeaponWeld.C0
 			IdleAnims[Identifier]:Play()
 			char:SetAttribute("Equipped", true)
 			EquipDebounce[Identifier] = false
@@ -92,7 +92,7 @@ function EquipModule.UnequipWeapon(char, npc)
 
 	UnEquipAnims[Identifier]:GetMarkerReachedSignal("Weld"):Connect(function()
 		Welds[Identifier].Part0 = torso
-		Welds[Identifier].C1 = WeaponsWeld[currentWeapon].IdleWeaponWeld.C1
+		Welds[Identifier].C0 = WeaponsWeld[currentWeapon].IdleWeaponWeld.C0
 	end)
 
 	UnEquipAnims[Identifier]:GetMarkerReachedSignal("UnEquipped"):Connect(function()
@@ -102,7 +102,7 @@ function EquipModule.UnequipWeapon(char, npc)
 	UnEquipAnims[Identifier].Stopped:Connect(function()
 		if char:GetAttribute("Stunned") then
 			Welds[Identifier].Part0 = torso
-			Welds[Identifier].C1 = WeaponsWeld[currentWeapon].IdleWeaponWeld.C1
+			Welds[Identifier].C0 = WeaponsWeld[currentWeapon].IdleWeaponWeld.C0
 			char:SetAttribute("Equipped", false)
 			print("EQuipdebouce, stop!")
 			EquipDebounce[Identifier] = false

@@ -1,41 +1,45 @@
---[[
-    NPC OOP Module Written by: @Æon/ Daniel Korubo
+--[=[
+	@class NPC
 
-    This module is desgied to create npc objects that are simular to the plr objects that roblox creates for players.
-    
-    The npc object looks like this:
-    npc = {
-        FirstName: string, -- The NPC's First name 
-		LastName: string,
-		Difficulty: string,
-		MobType: string,
-		Character: Model,
-		Element: string,
-		Brain: Script,
-	    talents: {},
-		skills: {},
-		drops: {},
+	Creates and manages NPC objects, analogous to the PlayerObject Roblox creates for players.
+	Each NPC wraps a Character model with combat state, stats, and a behavior-tree Brain script,
+	tracked via the internal CharToNPC and Combat_Data.ActiveNPCs lookup tables.
+]=]
+--[=[
+	@interface NPCData
+	.FirstName string -- The NPC's first name
+	.LastName string -- The NPC's last name
+	.Difficulty string -- e.g. "Boss", used to pick the model template and Brain script
+	.MobType string -- e.g. "Humanoid", "Human"; affects model creation and element assignment
+	.Character Model -- The NPC's physical character model in the workspace
+	.Element string -- The NPC's combat element, or "None" for non-humanoid mobs without one
+	.Brain Script -- The behavior-tree script driving this NPC, parented under Character
+	.talents {} -- Reserved for future talent data
+	.skills {} -- Reserved for future skill data
+	.drops {} -- Loot table entries chosen on death (currently unused, see PickDrops)
+	.MovementObj MovementTypes.MovementObj -- Handles this NPC's movement mechanics (dodge, climb, wall run)
+	.Intent -- This is the buffer that holds what combat action is the actor waiting to do
+	@within NPC
+]=]
 
-    }
-
-
-    The npc functions will be :
-
-    npc.new(NpcName, char) -- This is the constructor for the npc object it takes in the npc's name and an optional model if you want to use a custom model instead of the default one
-    npc.GetNpcFromCharacter(char) -- This would allow me to get the npc object from anywhere in the game as long as i have the chater
-    npc:Destroy() -- This will destroy the npc and clean up any connections or data related to the npc
-    npc:Attack() -- This will make the npc perform an attack using the attack module
-    npc:Block() -- This will make the npc perform a block using the block module
-    npc:Unblock() -- This will make the npc perform an unblock using the block module
-    npc:Dodge() -- This will make the npc perform a dodge using the dodge module
-	npc:Parry() -- This will make the npc perform a parry using the parry module
-	npc:Phase2() -- This will make the npc perform a phase 2 transformation using the mode module
-	npc:CastAblity() -- This will make the npc perform a cast ability using the cast ability module
-	npc:Climb() -- This will make the npc perform a climb using the movement module
-	npc:WallRun() -- This will make the npc perform a wall run using the movement module
-	npc:Start() -- This will start the npc's behavior tree and make it active in the game
- 
-]]
+--[=[
+	@interface NPCMethods
+	.Destroy (self: NPC) -> () -- Cleans up connections, references, and Combat_Data entries
+	.EquipWeapon (self: NPC) -> () -- Equips the NPC's CurrentWeapon attribute via EquipModule
+	.UnequipWeapon (self: NPC) -> () -- Unequips the NPC's current weapon via EquipModule
+	.Start (self: NPC) -> () -- Enables the NPC's Brain script, making it active in the game
+	.Attack (self: NPC) -> () -- Performs an attack via CombatHelper
+	.Idle (self: NPC) -> () -- Plays the idle animation for the NPC's current weapon
+	.Block (self: NPC) -> () -- Activates blocking via BlockModule
+	.Unblock (self: NPC) -> () -- Deactivates blocking via BlockModule
+	.Dodge (self: NPC, Direction: Vector3?) -> () -- Performs a dodge via DodgeModule
+	.Parry (self: NPC) -> () -- Attempts a parry via ParryModule
+	.Phase2 (self: NPC) -> () -- Triggers a phase 2 transformation via ModeModule
+	.CastAblity (self: NPC) -> () -- Stub, not yet implemented
+	.Climb (self: NPC) -> () -- Stub, not yet implemented
+	.WallRun (self: NPC) -> () -- Stub, not yet implemented
+	@within NPC
+]=]
 
 local npc = {}
 local SS = game:GetService("ServerStorage")
@@ -77,8 +81,7 @@ export type NPC = typeof(setmetatable(
 		talents: {},
 		skills: {},
 		drops: {},
-		MovementObj: MovementTypes.MovementObj
-
+		MovementObj: MovementTypes.MovementObj,
 	},
 	npc
 ))
@@ -106,14 +109,20 @@ local function PickDrops(npcName)
 	return ChosenDrops
 end
 
+--[=[
+	Constructs a new NPC. Pulls stats from NPC_Dictionary, generates or reuses a Character model,
+	equips its default weapon, and starts its idle animation. If the given Character already has
+	a "Brain" script (e.g. a dummy NPC set up for testing), its existing Brain and Element are
+	reused instead of being regenerated.
 
-
-
-
-
-
+	@param NpcName string -- Name used to look up stats via NPC_Dictionary.getStats
+	@param char Model? -- Optional pre-existing model to use instead of generating one from templates
+	@return NPC
+	@within NPC
+]=]
 
 function npc.new(NpcName: string, char: Model?): NPC
+	-- TODO: remove debug prints once out of beta
 	print("➔ npc.new() called! NpcName provided:", tostring(NpcName), "| Type:", type(NpcName))
 	local self = setmetatable({
 		FirstName = "",
@@ -135,9 +144,9 @@ function npc.new(NpcName: string, char: Model?): NPC
 	self.Difficulty = NPCinfo.Difficulty
 	self.Character = char or CreateModel(NpcName, self.Difficulty, self.MobType)
 
-	self.MovementObj= Movement.new(self)
+	self.MovementObj = Movement.new(self)
 
-	if self.FirstName ~= "" and self.LastName ~= "" then
+	if self.FirstName ~= "" and self.LastName ~= "" then --- first i would need to make a name generator module that would generate a name based on the npc type and mobtype and then i would use that to set the first and last name of the npc
 		self.Character.Name = self.FirstName .. self.LastName
 	end
 
@@ -162,17 +171,15 @@ function npc.new(NpcName: string, char: Model?): NPC
 			self.Character:SetAttribute(i, v)
 		end
 
-
-
-		self.Character:SetAttribute("CurrentWeapon", "Fractured_Kunai")  -- defulat is meant to fists for tesing purposes i am using the kunai
+		self.Character:SetAttribute("CurrentWeapon", "ShootingStar") -- defulat is meant to fists for tesing purposes i am using the kunai
 		local Torso = self.Character:FindFirstChild("Torso")
-		HelpfullModule.ChangeWeapon(self, self.Character,Torso)
+		HelpfullModule.ChangeWeapon(self, self.Character, Torso)
 		self:EquipWeapon()
-	
-		if self.Difficulty== "Boss" then
+
+		if self.Difficulty == "Boss" then
 			self.Element = NPCinfo.Element
 			self.Character:SetAttribute("Element", self.Element)
-		elseif self.Type == "Humanoid" then
+		elseif self.MobType == "Humanoid" then
 			-- Handle humanoid-specific initialization will be random from a table of movesets in the npc info
 			-- But for now
 			self.Element = NPCinfo.Element
@@ -192,15 +199,23 @@ function npc.new(NpcName: string, char: Model?): NPC
 	-- This is where the npc's drops are loaded into the npc object so that they can be accessed later when the npc dies
 	--self.drops = PickDrops(NpcName)
 
-	Combat_Data.ActiveNPCs[self.Character] = self 
-	 --^ fall back for getting npcs in combat data, this is incase there is a situation where i need to get an npc but i cant use the GetNpcFromCharacter function for some reason, this way i can still get the npc object from the character for example the many cyclic errors that would happen if i try to require the npc module in the combat modules, this way i can just get the npc from the combat data without having to require the npc module in the combat modules and cause cyclic errors
+	Combat_Data.ActiveNPCs[self.Character] = self
+	--^ fall back for getting npcs in combat data, this is incase there is a situation where i need to get an npc but i cant use the GetNpcFromCharacter function for some reason, this way i can still get the npc object from the character for example the many cyclic errors that would happen if i try to require the npc module in the combat modules, this way i can just get the npc from the combat data without having to require the npc module in the combat modules and cause cyclic errors
 
 	-- The NPC should be ready by now
 	self:Idle()
-	
-    
+
 	return self
 end
+
+--[=[
+	Looks up the NPC object associated with a given Character model. Useful for retrieving
+	an NPC from anywhere in the game as long as you have a reference to its Character.
+
+	@param char Model -- The Character model to look up
+	@return NPC? -- The associated NPC, or nil if the character has no NPC object
+	@within NPC
+]=]
 
 function npc.GetNpcFromCharacter(char): NPC?
 	if CharToNPC[char] then
@@ -209,10 +224,17 @@ function npc.GetNpcFromCharacter(char): NPC?
 	return nil
 end
 
+--[=[
+	Destroys the NPC: removes it from CharToNPC and Combat_Data.ActiveNPCs, destroys its
+	Character model, then clears and freezes the NPC object itself so it can no longer be
+	mutated or reused. Also scrubs any remaining references to this NPC out of every table
+	in Combat_Data.
+	@within NPC
+]=]
 
 function npc:Destroy()
 	CharToNPC[self.Character] = nil
-	Combat_Data.ActiveNPCs[self.Character] = nil  
+	Combat_Data.ActiveNPCs[self.Character] = nil
 	self.Character:Destroy()
 	table.clear(self)
 	table.freeze(self)
@@ -223,20 +245,52 @@ function npc:Destroy()
 	end
 end
 
+--[=[
+	Equips the NPC's current weapon (per its CurrentWeapon attribute) via EquipModule.
+	@within NPC
+]=]
 function npc:EquipWeapon()
 	EquipModule.EquipWeapon(self.Character, self)
 end
 
+--[=[
+	Unequips the NPC's current weapon via EquipModule.
+	@within NPC
+]=]
 function npc:UnequipWeapon()
 	EquipModule.UnequipWeapon(self.Character, self)
 end
 
+--[=[
+	Enables the NPC's Brain script, activating its behavior tree.
+	@within NPC
+]=]
 function npc:Start()
 	if self.Brain and self.Brain:IsA("Script") then
 		self.Brain.Disabled = false
 	end
 end
 
+--[=[
+	Loads and plays the idle animation matching the NPC's current weapon. If an idle
+	animation is already playing for this NPC, does nothing (prevents restarting the
+	animation on repeated calls).
+	@within NPC
+]=]
+function npc:Idle()
+	if Combat_Data.IdleAnims[self] and Combat_Data.IdleAnims[self].IsPlaying then
+		return
+	end
+	local hum = self.Character.Humanoid
+	local CurrentWeapon = self.Character:GetAttribute("CurrentWeapon")
+	Combat_Data.IdleAnims[self] = hum.Animator:LoadAnimation(WeaponAnimations[CurrentWeapon].Main.Idle)
+	Combat_Data.IdleAnims[self]:Play()
+end
+
+--[=[
+	Performs an attack via CombatHelper. No-ops if the NPC is currently transforming.
+	@within NPC
+]=]
 function npc:Attack()
 	if self.Character:GetAttribute("IsTransforming") then
 		return
@@ -244,14 +298,11 @@ function npc:Attack()
 	CombatHelper.Attack(self.Character, self)
 end
 
-function npc:Idle()
-	local hum = self.Character.Humanoid
-	local CurrentWeapon = self.Character:GetAttribute("CurrentWeapon")
-    Combat_Data.IdleAnims[self] = hum.Animator:LoadAnimation(WeaponAnimations[CurrentWeapon].Main.Idle)
-	if Combat_Data.IdleAnims[self].IsPlaying then return end
-    Combat_Data.IdleAnims[self]:Play()
-end
-
+--[=[
+	Activates blocking via BlockModule. No-ops if the NPC is transforming or if
+	HelpfullModule.CheckForAttributes reports a blocking-incompatible state.
+	@within NPC
+]=]
 function npc:Block()
 	if self.Character:GetAttribute("IsTransforming") then
 		return
@@ -262,6 +313,10 @@ function npc:Block()
 	BlockModule.ActivateBlocking(self.Character, self)
 end
 
+--[=[
+	Deactivates blocking via BlockModule. Same guard conditions as Block.
+	@within NPC
+]=]
 function npc:Unblock()
 	if self.Character:GetAttribute("IsTransforming") then
 		return
@@ -272,15 +327,24 @@ function npc:Unblock()
 	BlockModule.DeactivateBlocking(self.Character, self)
 end
 
+--[=[
+	Performs a dodge via DodgeModule, using the NPC's MovementObj. No-ops if transforming.
+
+	@param Direction Vector3? -- Currently unused; DodgeModule.Dodge does not read this argument yet
+	@within NPC
+]=]
 function npc:Dodge(Direction)
 	if self.Character:GetAttribute("IsTransforming") then
 		return
 	end
-
 	DodgeModule.Dodge(self.MovementObj)
-	
 end
 
+--[=[
+	Attempts a parry via ParryModule. No-ops if transforming or if
+	HelpfullModule.CheckForAttributes reports a parry-incompatible state.
+	@within NPC
+]=]
 function npc:Parry()
 	if self.Character:GetAttribute("IsTransforming") then
 		return
@@ -291,6 +355,10 @@ function npc:Parry()
 	ParryModule.ParryAttempt(self.Character, self)
 end
 
+--[=[
+	Triggers a phase 2 transformation via ModeModule. No-ops if already transforming.
+	@within NPC
+]=]
 function npc:Phase2()
 	if self.Character:GetAttribute("IsTransforming") then
 		return
@@ -298,18 +366,34 @@ function npc:Phase2()
 	ModeModule.Mode2(self.Character, self)
 end
 
+--[=[
+	:::caution Not implemented
+	Reserved wrapper for a future cast-ability module. Currently a no-op.
+	:::
+	@within NPC
+]=]
 function npc:CastAblity()
 	-- My wrap round to use the already made cast ability module but i dont want to require it each time so i put it here
 end
 
+--[=[
+	:::caution Not implemented
+	Reserved wrapper for wall-jump movement. Currently a no-op.
+	:::
+	@within NPC
+]=]
 function npc:Climb()
 	-- My wrap round to use the already made wall jump module but i dont want to require it each time so i put it here
 end
 
+--[=[
+	:::caution Not implemented
+	Reserved wrapper for wall-run movement. Currently just logs to console.
+	:::
+	@within NPC
+]=]
 function npc:WallRun()
 	-- My wrap round to use the already made wall run module but i dont want to require it each time so i put it here
 end
 
 return npc
-
-

@@ -12,26 +12,23 @@ local cam = workspace.CurrentCamera
 local AnimationsFolder = RS.Animations
 local ElementAnims = AnimationsFolder.Element
 
-
-
 local hiddenElements = {}
 
 local function Shiftoff(char)
-	local hum = char.Humanoid 
+	local hum = char.Humanoid
 	uis.MouseBehavior = Enum.MouseBehavior.Default
 	localplr.CameraMode = Enum.CameraMode.Classic
 	hum.AutoRotate = false
 end
 
-
 function module.HideUI(char)
 	local plr = PLayers:GetPlayerFromCharacter(char)
-	
+
 	if plr and plr == localplr then
 		local playerGui = plr:FindFirstChild("PlayerGui")
 		if playerGui then
 			for _, gui in ipairs(playerGui:GetChildren()) do
-				if gui:IsA("ScreenGui") and gui.Enabled then
+				if gui:IsA("ScreenGui") and gui.Enabled and gui.Name ~= "MovementUI" then
 					gui.Enabled = false
 					table.insert(hiddenElements, gui)
 				end
@@ -49,6 +46,57 @@ function module.HideUI(char)
 	end
 end
 
+function module.TweenBars(char)
+	local plr = PLayers:GetPlayerFromCharacter(char)
+	local Top = nil
+	local Bottom = nil
+	local TOP_Dest = UDim2.new(-0.001, 0, -0.187, 0)
+	local BOTTOM_Dest = UDim2.new(-0.034, 0, 0.75, 0)
+	local tweenSlide = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+
+	if plr and plr == localplr then
+		local PlayerGui = plr:FindFirstChildOfClass("PlayerGui")
+		local MovementUI = PlayerGui:FindFirstChild("MovementUI")
+
+		if MovementUI then
+			Top = MovementUI:FindFirstChild("Top") :: Frame
+			Bottom = MovementUI:FindFirstChild("Bottom") :: Frame
+
+			local tweenTop = TS:Create(Top, tweenSlide, { Position = TOP_Dest })
+			local tweenBottom = TS:Create(Bottom, tweenSlide, { Position = BOTTOM_Dest })
+
+			tweenTop:Play()
+			tweenBottom:Play()
+		end
+	end
+end
+
+function module.ResetBars(char)
+	local plr = PLayers:GetPlayerFromCharacter(char)
+	local Top = nil
+	local Bottom = nil
+
+	local TOP_HIDDEN = UDim2.new(-0.001, 0, -0.4, 0)
+	local BOTTOM_HIDDEN = UDim2.new(-0.034, 0, 1.1, 0)
+	local tweenSlide = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+
+	if plr and plr == localplr then
+		local PlayerGui = plr:FindFirstChildOfClass("PlayerGui")
+		local MovementUI = PlayerGui:FindFirstChild("MovementUI")
+
+		if MovementUI then
+			Top = MovementUI:FindFirstChild("Top")
+			Bottom = MovementUI:FindFirstChild("Bottom")
+
+			local tweenTop = TS:Create(Top, tweenSlide, { Position = TOP_HIDDEN })
+			local tweenBottom = TS:Create(Bottom, tweenSlide, { Position = BOTTOM_HIDDEN })
+
+			tweenTop:Play()
+			tweenBottom:Play()
+		end
+	end
+end
+
 function module.ShowUI()
 	for _, gui in ipairs(hiddenElements) do
 		if gui and gui.Parent then
@@ -57,8 +105,6 @@ function module.ShowUI()
 	end
 	table.clear(hiddenElements)
 end
-
-
 
 function module.EmitEffect(Targeteffect, cframe, destroytime)
 	local effect = Targeteffect:Clone()
@@ -90,84 +136,82 @@ function module.Highlight(char, duration, FillColor, OutlineColor)
 end
 
 function module.triggerEffects(parentObject, char, customOffset)
-    local HRP = char:FindFirstChild("HumanoidRootPart")
-    if not HRP then
-        warn("No HRP found!")
-        return
-    end
+	local HRP = char:FindFirstChild("HumanoidRootPart")
+	if not HRP then
+		warn("No HRP found!")
+		return
+	end
 
-    local EffectPart = parentObject:Clone()
-    EffectPart.Parent = workspace.VFX
+	local EffectPart = parentObject:Clone()
+	EffectPart.Parent = workspace.VFX
 
-    local offsetCFrame = customOffset or CFrame.new(0, 0, -0.894)
-    EffectPart.CFrame = HRP.CFrame * offsetCFrame * (parentObject.CFrame - parentObject.Position)
+	local offsetCFrame = customOffset or CFrame.new(0, 0, -0.894)
+	EffectPart.CFrame = HRP.CFrame * offsetCFrame * (parentObject.CFrame - parentObject.Position)
 
-    local cleanupTime = 0 
+	local cleanupTime = 0
 
-    for _, instance in ipairs(EffectPart:GetDescendants()) do
-        if instance:IsA("ParticleEmitter") or instance:IsA("Beam") or instance:IsA("Sound") then
-            task.spawn(function()
-                if not instance.Parent then
-                    return
-                end
+	for _, instance in ipairs(EffectPart:GetDescendants()) do
+		if instance:IsA("ParticleEmitter") or instance:IsA("Beam") or instance:IsA("Sound") then
+			task.spawn(function()
+				if not instance.Parent then
+					return
+				end
 
-                local delay = instance:GetAttribute("EmitDelay") or 0
-                local duration = instance:GetAttribute("EmitDuration")
+				local delay = instance:GetAttribute("EmitDelay") or 0
+				local duration = instance:GetAttribute("EmitDuration")
 
-                if delay + (duration or 0) > cleanupTime then
-                    cleanupTime = delay + (duration or 0)
-                end
+				if delay + (duration or 0) > cleanupTime then
+					cleanupTime = delay + (duration or 0)
+				end
 
-                if delay > 0 then
-                    task.wait(delay)
-                end
-                if not instance.Parent then
-                    return
-                end
+				if delay > 0 then
+					task.wait(delay)
+				end
+				if not instance.Parent then
+					return
+				end
 
-                if instance:IsA("Sound") then
-                    instance:Play()
-                    if instance.TimeLength > cleanupTime then
-                        cleanupTime = instance.TimeLength
-                    end
+				if instance:IsA("Sound") then
+					instance:Play()
+					if instance.TimeLength > cleanupTime then
+						cleanupTime = instance.TimeLength
+					end
+				elseif instance:IsA("ParticleEmitter") then
+					local count = instance:GetAttribute("EmitCount")
 
-                elseif instance:IsA("ParticleEmitter") then
-                    local count = instance:GetAttribute("EmitCount")
+					if duration and duration > 0 then
+						instance.Enabled = true
+						task.wait(duration)
+						if instance.Parent then
+							instance.Enabled = false
+						end
+					elseif count and count > 0 then
+						instance:Emit(count)
+					else
+						instance:Emit(1)
+					end
+				elseif instance:IsA("Beam") then
+					local beamClone = instance:Clone()
+					beamClone.Parent = instance.Parent
+					beamClone.Enabled = true
 
-                    if duration and duration > 0 then
-                        instance.Enabled = true
-                        task.wait(duration)
-                        if instance.Parent then
-                            instance.Enabled = false
-                        end
-                    elseif count and count > 0 then
-                        instance:Emit(count)
-                    else
-                        instance:Emit(1)
-                    end
+					local beamDuration = duration and duration > 0 and duration or 0.03
+					task.wait(beamDuration)
 
-                elseif instance:IsA("Beam") then
-                    local beamClone = instance:Clone()
-                    beamClone.Parent = instance.Parent
-                    beamClone.Enabled = true
+					if beamClone then
+						beamClone:Destroy()
+					end
+				end
+			end)
+		end
+	end
 
-                    local beamDuration = duration and duration > 0 and duration or 0.03
-                    task.wait(beamDuration)
-
-                    if beamClone then
-                        beamClone:Destroy()
-                    end
-                end
-            end)
-        end
-    end
-
-    task.delay(cleanupTime + 1, function()
-        if EffectPart then
-            EffectPart:Destroy()
-        end
-    end)
-    return EffectPart
+	task.delay(cleanupTime + 1, function()
+		if EffectPart then
+			EffectPart:Destroy()
+		end
+	end)
+	return EffectPart
 end
 
 function module.AfterImage(char, anim, type)
@@ -351,113 +395,115 @@ function module.HighlightBlink(target, fillcolor, duration, blinkSpeed)
 end
 
 function module.HyprVfx(char, echar, isMainSource)
-    if not char then
-        return
-    end
-    local HRP: BasePart = char:FindFirstChild("HumanoidRootPart")
-    if not HRP then
-        return
-    end
+	if not char then
+		return
+	end
+	local HRP: BasePart = char:FindFirstChild("HumanoidRootPart")
+	if not HRP then
+		return
+	end
 
-    local Middlepart
-    if isMainSource then
-        local VFXpart = RS.Effects.Combat.HyprParryVFX
-        Middlepart = module.triggerEffects(VFXpart, char, CFrame.new(-0.861, -0.1, -1.948))
-    end
+	local Middlepart
+	if isMainSource then
+		local VFXpart = RS.Effects.Combat.HyprParryVFX
+		Middlepart = module.triggerEffects(VFXpart, char, CFrame.new(-0.861, -0.1, -1.948))
+	end
 
-    local hl = Instance.new("Highlight")
-    hl.FillTransparency = 0.9
-    hl.OutlineTransparency = 0.2
-    hl.OutlineColor = Color3.fromRGB(216, 181, 55)
-    hl.OutlineColor = Color3.fromRGB(171, 141, 33)
-    hl.Parent = char
+	local hl = Instance.new("Highlight")
+	hl.FillTransparency = 0.9
+	hl.OutlineTransparency = 0.2
+	hl.OutlineColor = Color3.fromRGB(216, 181, 55)
+	hl.OutlineColor = Color3.fromRGB(171, 141, 33)
+	hl.Parent = char
 
-    Debris:AddItem(hl, 0.5)
+	Debris:AddItem(hl, 0.5)
 
-    Shiftoff(char)
+	Shiftoff(char)
 
-    local middlePosition: Vector3 = HRP.Position
+	local middlePosition: Vector3 = HRP.Position
 
-    if Middlepart then
-        local middleAttachment = Middlepart:FindFirstChild("Middle", true)
-        if middleAttachment then
-            middlePosition = middleAttachment.WorldPosition
-        else
-            middlePosition = Middlepart.Position
-        end
-    elseif echar and echar:FindFirstChild("HumanoidRootPart") then
-        middlePosition = HRP.Position:Lerp(echar.HumanoidRootPart.Position, 0.5)
-    end
+	if Middlepart then
+		local middleAttachment = Middlepart:FindFirstChild("Middle", true)
+		if middleAttachment then
+			middlePosition = middleAttachment.WorldPosition
+		else
+			middlePosition = Middlepart.Position
+		end
+	elseif echar and echar:FindFirstChild("HumanoidRootPart") then
+		middlePosition = HRP.Position:Lerp(echar.HumanoidRootPart.Position, 0.5)
+	end
 
-    local plrflag = PLayers:GetPlayerFromCharacter(char)
+	local plrflag = PLayers:GetPlayerFromCharacter(char)
 
-    if plrflag == localplr then
-        localplr.CameraMode = Enum.CameraMode.Classic
-        
-        local PlayerScripts = localplr:FindFirstChild("PlayerScripts")
-        local PlayerModule = PlayerScripts and PlayerScripts:FindFirstChild("PlayerModule")
-        if PlayerModule then
-            local CameraModule = require(PlayerModule):GetCameras()
-            if CameraModule and CameraModule.activeMouseLockController then
-                CameraModule.activeMouseLockController:EnableMouseLock(false)
-            end
-        end
+	if plrflag == localplr then
+		localplr.CameraMode = Enum.CameraMode.Classic
 
-        local baseOrientation = HRP.CFrame - HRP.CFrame.Position
-        local camoffset = Vector3.new(6, -1.5, 15) 
-        local camworldpos = HRP.Position + baseOrientation:VectorToWorldSpace(camoffset)
-        local TargetCframe = CFrame.lookAt(camworldpos, middlePosition)
+		local PlayerScripts = localplr:FindFirstChild("PlayerScripts")
+		local PlayerModule = PlayerScripts and PlayerScripts:FindFirstChild("PlayerModule")
+		if PlayerModule then
+			local CameraModule = require(PlayerModule):GetCameras()
+			if CameraModule and CameraModule.activeMouseLockController then
+				CameraModule.activeMouseLockController:EnableMouseLock(false)
+			end
+		end
 
-        cam.CameraType = Enum.CameraType.Scriptable
-        cam.CFrame = TargetCframe
-        cam.FieldOfView = 55
-        module.HideUI(char)
+		local baseOrientation = HRP.CFrame - HRP.CFrame.Position
+		local camoffset = Vector3.new(6, -1.5, 15)
+		local camworldpos = HRP.Position + baseOrientation:VectorToWorldSpace(camoffset)
+		local TargetCframe = CFrame.lookAt(camworldpos, middlePosition)
+		module.TweenBars(char)
 
-        task.wait(0.2) 
+		cam.CameraType = Enum.CameraType.Scriptable
+		cam.CFrame = TargetCframe
+		cam.FieldOfView = 55
+		module.HideUI(char)
 
-        local trackingConnection
-        local fovInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local fovTween = TS:Create(cam, fovInfo, { FieldOfView = 70 })
-        
-        trackingConnection = RunService.RenderStepped:Connect(function()
-            if char and char.Parent and echar and echar.Parent then
-                local currentHRP = char.HumanoidRootPart
-                local currentEHRP = echar.HumanoidRootPart
-                
-                local liveMiddle = currentHRP.Position:Lerp(currentEHRP.Position, 0.5)
-                local liveCamWorldPos = currentHRP.Position + baseOrientation:VectorToWorldSpace(camoffset)
-                
-                cam.CFrame = CFrame.lookAt(liveCamWorldPos, liveMiddle)
-            else
-                trackingConnection:Disconnect()
-            end
-        end)
+		task.wait(0.2)
 
-        fovTween:Play()
+		local trackingConnection
+		local fovInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		local fovTween = TS:Create(cam, fovInfo, { FieldOfView = 70 })
 
-        fovTween.Completed:Connect(function()
-            if trackingConnection then
-                trackingConnection:Disconnect()
-            end
-            cam.CameraType = Enum.CameraType.Custom
+		trackingConnection = RunService.RenderStepped:Connect(function()
+			if char and char.Parent and echar and echar.Parent then
+				local currentHRP = char.HumanoidRootPart
+				local currentEHRP = echar.HumanoidRootPart
 
-            localplr.CameraMode = Enum.CameraMode.Classic
+				local liveMiddle = currentHRP.Position:Lerp(currentEHRP.Position, 0.5)
+				local liveCamWorldPos = currentHRP.Position + baseOrientation:VectorToWorldSpace(camoffset)
 
-            local PlayerScripts = localplr:FindFirstChild("PlayerScripts")
-            local PlayerModule = PlayerScripts and PlayerScripts:FindFirstChild("PlayerModule")
-            if PlayerModule then
-                local CameraModule = require(PlayerModule):GetCameras()
-                if CameraModule and CameraModule.activeMouseLockController then
-                    CameraModule.activeMouseLockController:EnableMouseLock(true)
-                end
-            end
+				cam.CFrame = CFrame.lookAt(liveCamWorldPos, liveMiddle)
+			else
+				trackingConnection:Disconnect()
+			end
+		end)
 
-            char.Humanoid.AutoRotate = true
-            module.ShowUI()
-        end)
-    end
+		fovTween:Play()
+		
+
+		fovTween.Completed:Connect(function()
+			if trackingConnection then
+				trackingConnection:Disconnect()
+			end
+			cam.CameraType = Enum.CameraType.Custom
+
+			localplr.CameraMode = Enum.CameraMode.Classic
+
+			local PlayerScripts = localplr:FindFirstChild("PlayerScripts")
+			local PlayerModule = PlayerScripts and PlayerScripts:FindFirstChild("PlayerModule")
+			if PlayerModule then
+				local CameraModule = require(PlayerModule):GetCameras()
+				if CameraModule and CameraModule.activeMouseLockController then
+					CameraModule.activeMouseLockController:EnableMouseLock(true)
+				end
+			end
+
+			char.Humanoid.AutoRotate = true
+			module.ShowUI()
+			module.ResetBars(char)
+		end)
+	end
 end
-
 
 module.DestroyEffects = function(char, effect)
 	for i, v in pairs(workspace.VFX:GetChildren()) do

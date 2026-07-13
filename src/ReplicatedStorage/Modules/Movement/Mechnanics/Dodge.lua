@@ -1,204 +1,241 @@
 local Dodge = {}
 local RS = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local RSModules = RS.Modules
 local MovementTypes = require(RSModules.Movement.Objects.Movement.Types)
-local ClientHelpful = require(RSModules.ClientHelpfull)
+local FlowManager = require(RSModules.Movement.Ultils.Flow)
 local cam = workspace.CurrentCamera
 
 local WeaponAnims = RS.Animations.Weapons
 
 local CONFIG = {
-	DEFAULT_DASH_SPEED = 85,
-	DASH_DURATION = 0.2,
+    DEFAULT_DASH_SPEED = 75, -- Lowered slightly from 85 for cleaner control
+    MAX_DASH_SPEED = 120,    -- Absolute speed cap to prevent rocket launches
+    DASH_DURATION = 0.2,     -- Restored to 0.2 for a sharp, competitive feel
 }
 
 local DodgeCoolDowns = {}
 local CancelCoolDown = {}
 
 local function CalculateDodgeSpeed(MovementObj: MovementTypes.MovementObj, isAir: boolean): number
-	return CONFIG.DEFAULT_DASH_SPEED 
-	-- here i  need to confiogure that the dodges can actually go slighty further in the air also 
-	--while i am still on the tppiv of air doodgues i also need to remember to make the the dodger linger on thje aior for a bit
-	-- .. this gives the the ablity to properly aim where they in tend to go - though this might only to apply to dodgeing after a movement option
+    local baseSpeed = CONFIG.DEFAULT_DASH_SPEED
+
+    if MovementObj.Flow then
+        local flowBonus = MovementObj.Flow.FlowBonus or 1.0
+        local momentumMultiplier = 1.0
+            + (((MovementObj.Flow.Momentum or 0) / (MovementObj.Flow.MaxMomentum or 100)) * 0.40) -- Slighly re-tuned
+        baseSpeed = baseSpeed * flowBonus * momentumMultiplier
+    end
+
+    if isAir then
+        baseSpeed = baseSpeed * 1.1 -- Reduced airborne multiplier from 1.15 to 1.1
+    end
+
+    -- Safety clamping cap to prevent engine physics breaking
+    return math.min(baseSpeed, CONFIG.MAX_DASH_SPEED)
 end
 
 local function Get3DMovement(MovementObj: MovementTypes.MovementObj)
-	local char = MovementObj.char
-	local hum = char:FindFirstChildOfClass("Humanoid")
-	if not hum then
-		return Vector3.zero
-	end
+    local isServer = RunService:IsServer()
+    if isServer then
+        return Vector3.zero
+    end
 
-	local MoveInput = hum.MoveDirection
-	local HeldKey = char:GetAttribute("CurrentMoveKey") or "None"
+    local char = MovementObj.char
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then
+        return Vector3.zero
+    end
 
-	-- If the player has a MoveDirection input, use it directly (Roblox already maps this to Camera Space!)
-	if MoveInput.Magnitude > 0 then
-		return MoveInput.Unit
-	end
+    local MoveInput = hum.MoveDirection
+    local HeldKey = char:GetAttribute("CurrentMoveKey") or "None"
 
-	-- FALLBACK: If MoveInput is 0 but they are holding a specific key, calculate direction manually using Cam CFrames
-	if HeldKey ~= "None" then
-		local camCF = cam.CFrame
-		local forward = camCF.LookVector
-		local right = camCF.RightVector
+    if MoveInput.Magnitude > 0 then
+        return MoveInput.Unit
+    end
 
-		-- Keep it flat on the XZ plane if they are on the ground, or keep full 3D if preferred
-		if HeldKey == "W" then
-			return forward.Unit
-		end
-		if HeldKey == "S" then
-			return -forward.Unit
-		end
-		if HeldKey == "A" then
-			return -right.Unit
-		end
-		if HeldKey == "D" then
-			return right.Unit
-		end
-	end
+    if HeldKey ~= "None" then
+        local camCF = cam.CFrame
+        local forward = camCF.LookVector
+        local right = camCF.RightVector
 
-	-- FINAL FALLBACK: If absolutely no keys are held, default directly forward where the camera is looking
-	return cam.CFrame.LookVector.Unit
+        -- Flatten vectors to prevent camera tilt from altering launch angles
+        forward = Vector3.new(forward.X, 0, forward.Z).Unit
+        right = Vector3.new(right.X, 0, right.Z).Unit
+
+        if HeldKey == "W" then return forward end
+        if HeldKey == "S" then return -forward end
+        if HeldKey == "A" then return -right end
+        if HeldKey == "D" then return right end
+    end
+
+    local flatCam = Vector3.new(cam.CFrame.LookVector.X, 0, cam.CFrame.LookVector.Z).Unit
+    return flatCam
 end
 
 function Dodge.Dodge(MovementObj: MovementTypes.MovementObj)
-	if not MovementObj or not MovementObj.char or MovementObj.IsActing.Dodging then
-		return
-	end
-	local char = MovementObj.char
-	local HRP = char:FindFirstChild("HumanoidRootPart")
-	local hum = char:FindFirstChildOfClass("Humanoid")
+    if not MovementObj or not MovementObj.char or MovementObj.IsActing.Dodging then
+        return
+    end
 
-	if DodgeCoolDowns[MovementObj] and tick() - DodgeCoolDowns[MovementObj] < 0.7 then
-		return
-	end
+    local char = MovementObj.char
+    local HRP = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local isServer = RunService:IsServer()
 
-	if not HRP or not hum then
-		return
-	end
+    if DodgeCoolDowns[MovementObj] and os.clock() - DodgeCoolDowns[MovementObj] < 0.55 then
+        return
+    end
+    if not HRP or not hum then
+        return
+    end
 
-	if ClientHelpful.CheckForAttributes(char, true, true, true, true, false, true, true, false) then
-		return
-	end
-	if ClientHelpful.CheckStamina(char, "Dodge") then
-		return
-	end
+    if not isServer then
+        local ClientHelpful = require(RSModules.ClientHelpfull)
+        if ClientHelpful.CheckForAttributes(char, true, true, true, true, false, true, true, false) then
+            return
+        end
+        if ClientHelpful.CheckStamina(char, "Dodge") then
+            return
+        end
+    end
 
-	local dashdir = Get3DMovement(MovementObj)
-	local isAir = MovementObj.States.IsInAir
+    local dashdir = Get3DMovement(MovementObj)
+    local isAir = MovementObj.States.IsInAir
 
-	if dashdir == Vector3.zero and isAir then
-		return
-	end
+    if dashdir == Vector3.zero and isAir then
+        return
+    end
 
-	local HeldKey = char:GetAttribute("CurrentMoveKey")
-	local CurrentWeapon = char:GetAttribute("CurrentWeapon")
-	local DodgeAnim = nil
+    local HeldKey = char:GetAttribute("CurrentMoveKey")
+    local CurrentWeapon = char:GetAttribute("CurrentWeapon") or "BareFists"
+    local DodgeAnim = nil
 
-	MovementObj.IsActing.Dodging = true
+    FlowManager.OnDodgeStart(MovementObj)
+    MovementObj.IsActing.Dodging = true
 
-	if isAir then
-		if HeldKey == nil or HeldKey == "None" then
-			HeldKey = "W"
-		end
-		DodgeAnim = hum.Animator:LoadAnimation(WeaponAnims[CurrentWeapon].Dodging.InAir[HeldKey])
-		MovementObj.InfoTable.Dodge.Type = "AirDodge"
-	else
-		if dashdir == Vector3.zero or HeldKey == "None" then
-			HeldKey = "None"
-			MovementObj.InfoTable.Dodge.Type = "SpotDodge"
-		else
-			if HeldKey == nil then
-				HeldKey = "W"
-			end
-			MovementObj.InfoTable.Dodge.Type = "Normal"
-		end
-		DodgeAnim = hum.Animator:LoadAnimation(WeaponAnims[CurrentWeapon].Dodging[HeldKey])
-	end
+    if isAir then
+        if HeldKey == nil or HeldKey == "None" then HeldKey = "W" end
+        DodgeAnim = hum.Animator:LoadAnimation(WeaponAnims[CurrentWeapon].Dodging.InAir[HeldKey])
+        MovementObj.InfoTable.Dodge.Type = "AirDodge"
+    else
+        if dashdir == Vector3.zero or HeldKey == "None" then
+            HeldKey = "None"
+            MovementObj.InfoTable.Dodge.Type = "SpotDodge"
+        else
+            if HeldKey == nil then HeldKey = "W" end
+            MovementObj.InfoTable.Dodge.Type = "Normal"
+        end
+        DodgeAnim = hum.Animator:LoadAnimation(WeaponAnims[CurrentWeapon].Dodging[HeldKey])
+    end
 
-	if DodgeAnim then
-		DodgeAnim:Play()
-	end
+    if DodgeAnim then DodgeAnim:Play() end
+    MovementObj.InfoTable.Dodge.Dir = dashdir
 
-	MovementObj.InfoTable.Dodge.Dir = dashdir
-	MovementObj:ServerRequest("Dodge")
+    if not isServer then
+        MovementObj:ServerRequest("Dodge")
+    end
 
-	local lv, algin
-	if MovementObj.InfoTable.Dodge.Type ~= "SpotDodge" then
-		local DodgeSpeed = CalculateDodgeSpeed(MovementObj, isAir)
-		local att = HRP:FindFirstChild("DodgeAtt") or Instance.new("Attachment", HRP)
-		att.Name = "DodgeAtt"
+    local lv, algin
+    if MovementObj.InfoTable.Dodge.Type ~= "SpotDodge" then
+        local DodgeSpeed = CalculateDodgeSpeed(MovementObj, isAir)
+        local att = HRP:FindFirstChild("DodgeAtt") or Instance.new("Attachment", HRP)
+        att.Name = "DodgeAtt"
 
-		lv = Instance.new("LinearVelocity")
-		lv.Name = "DashForce"
-		lv.Attachment0 = att
-		lv.MaxForce = math.huge
-		lv.VectorVelocity = dashdir * DodgeSpeed
-		lv.Parent = HRP
+        lv = Instance.new("LinearVelocity")
+        lv.Name = "DashForce"
+        lv.Attachment0 = att
+        lv.MaxForce = math.huge
 
-		algin = Instance.new("AlignOrientation")
-		algin.Name = "DashRotation"
-		algin.Mode = Enum.OrientationAlignmentMode.OneAttachment
-		algin.Attachment0 = att
-		algin.MaxTorque = math.huge
-		algin.Responsiveness = 50
-		algin.CFrame = CFrame.lookAlong(Vector3.zero, dashdir)
-		algin.Parent = HRP
-	end
+        if isAir then
+            -- TIGHTENED GRAVITY COMPENSATION: 
+            -- Uses an optimized baseline curve to keep the player afloat without executing a vertical launch.
+            local gravityCounter = Vector3.new(0, workspace.Gravity * (CONFIG.DASH_DURATION * 0.75), 0)
+            
+            -- Flatten dashdir Y components to keep air dodges linear rather than angled upwards
+            local flatDashDir = Vector3.new(dashdir.X, 0, dashdir.Z).Unit
+            lv.VectorVelocity = (flatDashDir * DodgeSpeed) + gravityCounter
+        else
+            lv.VectorVelocity = dashdir * DodgeSpeed
+        end
+        lv.Parent = HRP
 
-	local infoTable = { Action = "Dodge" }
-	MovementObj:BarTween(infoTable)
+        algin = Instance.new("AlignOrientation")
+        algin.Name = "DashRotation"
+        algin.Mode = Enum.OrientationAlignmentMode.OneAttachment
+        algin.Attachment0 = att
+        algin.MaxTorque = math.huge
+        algin.Responsiveness = 50
+        algin.CFrame = CFrame.lookAlong(Vector3.zero, Vector3.new(dashdir.X, 0, dashdir.Z).Unit)
+        algin.Parent = HRP
+    end
 
-	local function Stop()
-		if not MovementObj.IsActing.Dodging then
-			return
-		end
+    if not isServer then
+        local infoTable = { Action = "Dodge" }
+        MovementObj:BarTween(infoTable)
+    end
 
-		if DodgeAnim then
-			DodgeAnim:Stop()
-			DodgeAnim:Destroy()
-		end
-		if lv then
-			lv:Destroy()
-		end
-		if algin then
-			algin:Destroy()
-		end
+    local function Stop()
+        if not MovementObj.IsActing.Dodging then return end
 
-		MovementObj.IsActing.Dodging = false
-		MovementObj.InfoTable.Dodge.Type = "None"
+        if DodgeAnim then DodgeAnim:Stop(); DodgeAnim:Destroy() end
+        if lv then lv:Destroy() end
+        if algin then algin:Destroy() end
 
-		local Info = { Action = "Dodge" }
-		MovementObj:BarTweenStop(Info)
-		DodgeCoolDowns[MovementObj] = tick()
-	end
+        MovementObj.IsActing.Dodging = false
+        MovementObj.InfoTable.Dodge.Type = "None"
 
-	MovementObj.InfoTable.Dodge.Stop = Stop
+        FlowManager.OnDodgeEnd(MovementObj, function()
+            if isServer then return end 
+            local Sprinting = require(RSModules.Movement.Mechnanics.Sprinting)
+            if MovementObj.IsActing.IsEXSprinting then
+                MovementObj.IsActing.IsSprinting = false
+                Sprinting.NormalToggle(MovementObj)
+                MovementObj.IsActing.IsEXSprinting = false
+                Sprinting.ExToggle(MovementObj)
+            else
+                MovementObj.IsActing.IsSprinting = false
+                Sprinting.NormalToggle(MovementObj)
+            end
+        end)
 
-	task.delay(CONFIG.DASH_DURATION, function()
-		Stop()
-	end)
+        if not isServer then
+            local infoTable = { Action = "Dodge" }
+            MovementObj:BarTweenStop(infoTable)
+        end
+        DodgeCoolDowns[MovementObj] = os.clock()
+    end
+
+    MovementObj.InfoTable.Dodge.Stop = Stop
+
+    task.delay(CONFIG.DASH_DURATION, function()
+        Stop()
+    end)
 end
 
 function Dodge.DodgeCancel(MovementObj: MovementTypes.MovementObj)
-	if not MovementObj or not MovementObj.IsActing.Dodging then
-		return
-	end
-	if CancelCoolDown[MovementObj] and tick() - CancelCoolDown[MovementObj] < 0.5 then
-		return
-	end
-	local char = MovementObj.char
-	local hum = char:FindFirstChildOfClass("Humanoid")
-	local currentWeapon = char:GetAttribute("CurrentWeapon")
-	local DodgeCancelAnim = hum.Animator:LoadAnimation(WeaponAnims[currentWeapon].Dodging.DodgeCancel)
-	if typeof(MovementObj.InfoTable.Dodge.Stop) == "function" then
-		MovementObj.InfoTable.Dodge.Stop()
-	end
-	DodgeCancelAnim:Play()
-	CancelCoolDown[MovementObj] = tick()
-	DodgeCoolDowns[MovementObj] = 0
-	MovementObj:ServerRequest("DodgeCancel")
+    if not MovementObj or not MovementObj.IsActing.Dodging then return end
+    local isServer = RunService:IsServer()
+    local cooldownTime = isServer and os.clock() or tick()
+
+    if CancelCoolDown[MovementObj] and (cooldownTime - CancelCoolDown[MovementObj] < 0.5) then return end
+
+    local char = MovementObj.char
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local currentWeapon = char:GetAttribute("CurrentWeapon")
+    local DodgeCancelAnim = hum.Animator:LoadAnimation(WeaponAnims[currentWeapon].Dodging.DodgeCancel)
+
+    if typeof(MovementObj.InfoTable.Dodge.Stop) == "function" then
+        MovementObj.InfoTable.Dodge.Stop()
+    end
+
+    DodgeCancelAnim:Play()
+    CancelCoolDown[MovementObj] = cooldownTime
+    DodgeCoolDowns[MovementObj] = 0
+
+    if not isServer then
+        MovementObj:ServerRequest("DodgeCancel")
+    end
 end
 
 return Dodge

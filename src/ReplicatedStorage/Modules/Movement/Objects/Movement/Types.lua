@@ -1,106 +1,120 @@
 export type MovementObjData = {
-    identifer: any,
-    char: Model,
-    IsReady: boolean,
+	identifer: any,
+	char: Model,
+	IsReady: boolean,
 
-    IsActing: { -- Flags for if they are using the movement system
-        Dodging: boolean,
-        WallRunning: boolean,
-        Climbing: boolean,
-        IsSprinting: boolean,
-        IsEXSprinting: boolean,
-    },
+	IsActing: { -- Flags for if they are using the movement system
+		Dodging: boolean,
+		WallRunning: boolean,
+		Climbing: boolean,
+		IsSprinting: boolean,
+		IsEXSprinting: boolean,
+	},
 
-    	States: {
-			IsGrounded: boolean, -- Standard is on ground
-			IsInAir: boolean, -- In the air
-			IsOnWall: boolean, -- Is holding onto a wall
-			IsCrouching:boolean, -- Is crouching
-			IsSliding:boolean, -- Is sliding 
-			IsResting:boolean -- Is resting 
+	States: {
+		IsGrounded: boolean, -- Standard is on ground
+		IsInAir: boolean, -- In the air
+		IsOnWall: boolean, -- Is holding onto a wall
+		IsCrouching: boolean, -- Is crouching
+		IsSliding: boolean, -- Is sliding
+		IsResting: boolean, -- Is resting
+	},
+
+	_attributeSignals: { [string]: any },
+	_attributePaths: { [string]: string },
+
+	InfoTable: { -- Table for storing important info for the movement system (like wallrun dir, climb dir, etc.)
+		Wallrun: {
+			Side: number, -- Side of the wall (1 is right, -1 is left)
+			Normal: Vector3, -- Normal of the wall
+			Stop: (reason: string) -> (),
 		},
 
-
-
-		InfoTable:{ -- Table for storing important info for the movement system (like wallrun dir, climb dir, etc.)
-			Wallrun: {
-				Side : number, -- Side of the wall (1 is right, -1 is left)
-				Normal: Vector3, -- Normal of the wall
-				Stop : (reason: string) -> (),
-			},
-
-			Dodge: {
-				Dir :  Vector3, -- Direction of the dodge (forward, back, left, right and spot)
-				Type : string, -- Type of dodge (standard, airdash,)
-				Speed:number, -- How fast the dodge is going
-				Stop : () -> (),
-				
-			},
-
-			Climb: {
-				Stop : () -> (),
-			},
-
-			Sprint: {
-				Stop : () -> (),
-				SprintAnim: AnimationTrack
-			},
-
-			EXSprint: {
-				Stop : () -> (),
-			},
-
-			WallHold: {
-				Type : string, -- Type of wall hold (Ledge, Parallel, etc.)
-				Stop : () -> (),
-			},
-
-
-			Crouch: {
-				Stop : () -> (),
-			},
-
-			Slide: {
-				Stop : () -> (),
-			}
-
-
-			
-
-
+		Dodge: {
+			Dir: Vector3, -- Direction of the dodge (forward, back, left, right and spot)
+			Type: string, -- Type of dodge (standard, airdash,)
+			Speed: number, -- How fast the dodge is going
+			Stop: () -> (),
 		},
 
-		
-
-		WalkCycleAnims: {
-			WalkForward: AnimationTrack,
-			WalkRight: AnimationTrack,
-			WalkLeft: AnimationTrack,
-			WalkBack: AnimationTrack,
+		Climb: {
+			Stop: () -> (),
 		},
 
-		UI: {
-			top: Frame,
-			bottom: Frame,
-			top_tilt: Frame,
-			bottom_tilt: Frame,
+		Sprint: {
+			Stop: () -> (),
+			SprintAnim: AnimationTrack,
 		},
+
+		EXSprint: {
+			Stop: () -> (),
+		},
+
+		WallHold: {
+			Type: string, -- Type of wall hold (Ledge, Parallel, etc.)
+			Stop: () -> (),
+		},
+
+		Crouch: {
+			Stop: () -> (),
+		},
+
+		Slide: {
+			Stop: () -> (),
+		},
+	},
+
+	WalkCycleAnims: {
+		WalkForward: AnimationTrack,
+		WalkRight: AnimationTrack,
+		WalkLeft: AnimationTrack,
+		WalkBack: AnimationTrack,
+	},
+
+	UI: {
+		top: Frame,
+		bottom: Frame,
+		top_tilt: Frame,
+		bottom_tilt: Frame,
+	},
+
+	Flow: {
+		BaseSpeed: number,
+		CurrentSpeed: number,
+		TargetSpeed: number,
+
+		WasSprinting: boolean,
+		SprintIntentTime: number,
+		LastMechanic: string,
+
+		StoredVelocity: Vector3,
+		LastAirVelocity: Vector3,
+		EntryVelocity: Vector3,
+
+		Momentum: number,
+		MaxMomentum: number,
+
+		FlowBonus: number,
+		ChainCount: number,
+		LastChainTime: number,
+
+		IsTransitioning: boolean,
+		LerpConnection: RBXScriptConnection?,
+	},
 }
-
 
 export type MovementObjMethods = {
-    BarTween: (self: MovementObj, infoTable: {any}) -> (),
-    BarTweenStop: (self: MovementObj, infoTable: {any}) -> (),
-    UpdateWalkTracks: (self:MovementObj) -> (),
-    WalkCycle: (self:MovementObj) -> (),
-    ClearWalkAnims: (self:MovementObj) -> (),
-	ServerRequest:(self:MovementObj, action:string) -> (),
-	StateChecker:(self:MovementObj,action:string,Ignore:boolean) -> ()
-
+	BarTween: (self: MovementObj, infoTable: { any }) -> (),
+	BarTweenStop: (self: MovementObj, infoTable: { any }) -> (),
+	UpdateWalkTracks: (self: MovementObj) -> (),
+	WalkCycle: (self: MovementObj) -> (),
+	ClearWalkAnims: (self: MovementObj) -> (),
+	ServerRequest: (self: MovementObj, action: string) -> (),
+	StateChecker: (self: MovementObj, action: string, Ignore: boolean) -> (),
+	Destroy: (self: MovementObj) -> (),
+	GetAttributeChangedSignal: (self: MovementObj, attributeName: string) -> (),
 }
 
-
 export type MovementObj = MovementObjData & MovementObjMethods
-
 
 return {}

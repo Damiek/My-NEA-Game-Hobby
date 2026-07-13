@@ -1,9 +1,34 @@
 
 local RS = game:GetService("ReplicatedStorage")
+local RSModules = RS.Modules
+
+local MovementClass = require(RSModules.Movement.Objects.Movement)
+local types = require(RSModules.Movement.Objects.Movement.Types)
 local TS = game:GetService("TweenService")
 local plr = game.Players.LocalPlayer
 local PlayerGui = plr:WaitForChild("PlayerGui")
 local StatusBars = PlayerGui:WaitForChild("StatusBars")
+local MomentumUI = PlayerGui:WaitForChild("Momentum") :: BillboardGui
+
+local MomentumFrame = MomentumUI:FindFirstChild("Momentum")
+local UI_Grad = MomentumFrame.Fill.Grad
+
+
+
+local obj = MovementClass.GetMovementObj(plr)
+
+while not obj do
+    obj = MovementClass.GetMovementObj(plr)
+    print(obj)
+    task.wait(0.1)
+end
+
+
+
+
+
+
+
 local MDBar = StatusBars.Frame.MFBar.Mental_Fill
 
 local UIFolder = RS.UI.StatusBar
@@ -82,10 +107,19 @@ end)
 
 
 
+obj:GetAttributeChangedSignal("Momentum"):Connect(function(newMomentum, oldMomentum)
+    UI_Grad.Offset = Vector2.new(0, 1 - (newMomentum / obj.Flow.MaxMomentum))
+end)
+
     StatusBars.Adornee = torso
     StatusBars.Parent = torso
-    StatusBars.StudsOffset = Vector3.new(4.5, 0, 0) 
-    print("WHY ARENT YOU WORKING?")
+    StatusBars.StudsOffset = Vector3.new(-4.5, 0, 0) 
+
+
+    MomentumUI.Adornee = torso
+    MomentumUI.Parent = torso
+    MomentumUI.StudsOffset = Vector3.new(4.5, 0, 0) 
+
 
 
 
