@@ -9,29 +9,39 @@ local cam = workspace.CurrentCamera
 local WeaponAnims = RS.Animations.Weapons
 
 local CONFIG = {
-    DEFAULT_DASH_SPEED = 75, -- Lowered slightly from 85 for cleaner control
-    MAX_DASH_SPEED = 120,    -- Absolute speed cap to prevent rocket launches
-    DASH_DURATION = 0.2,     -- Restored to 0.2 for a sharp, competitive feel
+    DEFAULT_DASH_SPEED = 75, 
+    MAX_DASH_SPEED = 120,    
+    DASH_DURATION = 0.25,     
 }
 
 local DodgeCoolDowns = {}
 local CancelCoolDown = {}
 
-local function CalculateDodgeSpeed(MovementObj: MovementTypes.MovementObj, isAir: boolean): number
+local function SetIntent(char, intent)
+	if not RunService:IsServer() then return end
+	local SSModules = game:GetService("ServerStorage").Modules
+	local IntentService = require(SSModules.Combat.IntentService)
+	IntentService.SetIntent(char, nil, intent)
+end
+
+
+
+local function CalculateDodgeSpeed(MovementObj: MovementTypes.MovementObj, isAir: boolean): number?
+    local char = MovementObj.char
+    if not char then return nil end 
+    local Element = char:GetAttribute("Element")
     local baseSpeed = CONFIG.DEFAULT_DASH_SPEED
-
-    if MovementObj.Flow then
-        local flowBonus = MovementObj.Flow.FlowBonus or 1.0
-        local momentumMultiplier = 1.0
-            + (((MovementObj.Flow.Momentum or 0) / (MovementObj.Flow.MaxMomentum or 100)) * 0.40) -- Slighly re-tuned
-        baseSpeed = baseSpeed * flowBonus * momentumMultiplier
+    if Element == "Astral" and char:GetAttribute("Mode2") then
+        baseSpeed  = baseSpeed * 1.5
     end
+   
 
+    ---- I need to make a formula for dodge speed later
     if isAir then
-        baseSpeed = baseSpeed * 1.1 -- Reduced airborne multiplier from 1.15 to 1.1
+        baseSpeed = baseSpeed * 0.9 -- you go little slower in the air 
     end
 
-    -- Safety clamping cap to prevent engine physics breaking
+    
     return math.min(baseSpeed, CONFIG.MAX_DASH_SPEED)
 end
 
@@ -113,6 +123,7 @@ function Dodge.Dodge(MovementObj: MovementTypes.MovementObj)
 
     FlowManager.OnDodgeStart(MovementObj)
     MovementObj.IsActing.Dodging = true
+    SetIntent(char, "Dodge")
 
     if isAir then
         if HeldKey == nil or HeldKey == "None" then HeldKey = "W" end
@@ -139,6 +150,7 @@ function Dodge.Dodge(MovementObj: MovementTypes.MovementObj)
     local lv, algin
     if MovementObj.InfoTable.Dodge.Type ~= "SpotDodge" then
         local DodgeSpeed = CalculateDodgeSpeed(MovementObj, isAir)
+        if not DodgeSpeed then return end 
         local att = HRP:FindFirstChild("DodgeAtt") or Instance.new("Attachment", HRP)
         att.Name = "DodgeAtt"
 
@@ -184,6 +196,7 @@ function Dodge.Dodge(MovementObj: MovementTypes.MovementObj)
 
         MovementObj.IsActing.Dodging = false
         MovementObj.InfoTable.Dodge.Type = "None"
+        SetIntent(char, "None")
 
         FlowManager.OnDodgeEnd(MovementObj, function()
             if isServer then return end 

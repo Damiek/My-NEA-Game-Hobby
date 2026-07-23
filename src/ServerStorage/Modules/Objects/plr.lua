@@ -13,6 +13,9 @@ local MOvementObjType = require(RSModules.Movement.Objects.Movement.Types)
 local AcessoryManager = require(SSModules.Other.AccessoriesManager)
 local CombatData = require(SSModules.Combat.Data.CombatData)
 local helpfullModule = require(SSModules.Other.Helpful)
+local CombatHelper = require(SSModules.Combat.CombatHelper)
+local ModeModule = require(SSModules.Combat.Mode_Module)
+local ParryModule = require(SSModules.Parrying)
 
 local CONFIG = {
 	VIT = {
@@ -267,6 +270,7 @@ function plr.new(Player: Player, Slot: string): PLR?
 		Character = Player.Character :: any,
 		CurrentSlot = Slot,
 		Element = "",
+		Intent = "None",
 		Talents = {},
 		Skills = {},
 		Stats = {
@@ -346,21 +350,50 @@ function plr.new(Player: Player, Slot: string): PLR?
 	return self
 end
 
-function plr:Destroy()
-	local HRP: BasePart = self.Character:FindFirstChild("HumanoidRootPart")
-	local CframeParts = { HRP.CFrame:GetComponents() }
-	print(CframeParts)
-	self.Data.LastLocation = CframeParts
-	AcessoryManager.cleanup(self.Player)
+function plr:Cleanup()
+	if not self.Player or self._cleaned then
+		return
+	end
+	self._cleaned = true
+
+	AcessoryManager.CleanupForPlayer(self.Player)
+
+	if self.MovementObj then
+		pcall(function()
+			self.MovementObj:Destroy()
+		end)
+		self.MovementObj = nil
+	end
+
+	local Identifier = self.Player
+	CombatData.ClearForPlayer(Identifier)
+	CombatHelper.CleanupForPlayer(Identifier)
+	ModeModule.CleanupForPlayer(Identifier)
+	ParryModule.CleanupForPlayer(Identifier)
+
 	playertoPLR[self.Player] = nil
-	self.Character:Destroy()
-	table.clear(self)
-	table.freeze(self)
-	for i, Table in pairs(CombatData) do
-		if type(Table) == "table" and Table ~= nil then
-			table.remove(table, table.find(table, self))
+end
+
+function plr:Destroy()
+	local Character = self.Character
+	if Character then
+		local HRP = Character:FindFirstChild("HumanoidRootPart")
+		if HRP and self.Data then
+			local CframeParts = { HRP.CFrame:GetComponents() }
+			self.Data.LastLocation = CframeParts
 		end
 	end
+
+	self:Cleanup()
+
+	if self.Character then
+		pcall(function()
+			self.Character:Destroy()
+		end)
+	end
+
+	table.clear(self)
+	table.freeze(self)
 end
 
 function plr.GetPLRFromPlayer(Player: Player): PLR?

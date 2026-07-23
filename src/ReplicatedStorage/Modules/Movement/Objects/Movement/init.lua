@@ -419,10 +419,34 @@ end
 
 
 function Movement:Destroy()
-    for _, sig in pairs(self._attributeSignals) do
-        sig:Destroy() -- or :DisconnectAll(), depending on your Signal module's API
-    end
-    self._attributeSignals = {}
+	FlowManager.Cleanup(self)
+
+	self:ClearWalkAnims()
+
+	for _, sig in pairs(self._attributeSignals) do
+		pcall(function()
+			sig:Destroy()
+		end)
+	end
+	self._attributeSignals = {}
+	self._attributePaths = {}
+
+	for _, key in ipairs({"Wallrun", "Dodge", "Climb", "Sprint", "EXSprint", "WallHold", "Crouch", "Slide"}) do
+		local entry = self.InfoTable[key]
+		if type(entry) == "table" and type(entry.Stop) == "function" then
+			pcall(function()
+				entry.Stop()
+			end)
+			entry.Stop = function() end
+		end
+	end
+
+	objTable[self.identifer] = nil
+
+	self.char = nil
+	self.identifer = nil
+	self.UI = nil
+	self.Flow = nil
 end
 
 return Movement

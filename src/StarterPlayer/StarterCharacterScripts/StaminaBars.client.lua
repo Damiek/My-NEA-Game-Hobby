@@ -118,7 +118,7 @@ end)
 
     MomentumUI.Adornee = torso
     MomentumUI.Parent = torso
-    MomentumUI.StudsOffset = Vector3.new(4.5, 0, 0) 
+    MomentumUI.StudsOffset = Vector3.new(3.5, 0, 0) 
 
 
 

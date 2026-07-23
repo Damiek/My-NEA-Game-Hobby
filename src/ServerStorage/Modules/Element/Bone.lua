@@ -1,3 +1,16 @@
+--[[
+  TODO: Completely reconstruct this using OOP 
+  this would be an elementObj that is attached to the npc/plr object 
+
+  also i would need to create custom attributes for each element 
+  on top of this each element would need to have a Mode1 and Mode2 Init function that handles any special intercation with transfomrations
+	such as loading new attributes or creating new welds.
+
+
+]] 
+
+
+
 local Bone = {}
 local RunService = game:GetService("RunService")
 local RS = game:GetService("ReplicatedStorage")
@@ -10,20 +23,39 @@ local Combat_Data = require(SSModules.Combat.Data.CombatData)
 local HelpfullModule = require(SSModules.Other.Helpful)
 
 
+
 local AnimationsFolder = RS.Animations
 local WeaponsAnimations = AnimationsFolder.Weapons
 local WeaponsModels = RS.Models.Weapons
 local WeaponsWeld = RS.Welds
 
+local Connections = {}
+local Weapon_SwapAnimation = {}
+local WeaponCounter = {}
+local DidSwap = {}
+local WeaponArsenal = {
+	"Tooth_And_Nail",
+	"Judgement",
+	"Fang",
+	"DrakeFang",
+	"Glock,"
+}
 
 
 
-
-
-local function getUniqueId(char)
-	local uid = char.Humanoid:FindFirstChild("UniqueId")
-	return uid.Value or nil
+local function GetNPCFromCharacter(char)
+	local plr = game.Players:GetPlayerFromCharacter(char)
+	if plr then return nil end
+	local npcModule = require(SSModules.Objects.npc)
+	return npcModule.GetNpcFromCharacter(char)
 end
+
+
+
+
+
+
+
 
 function Bone.DodgeRandomTP(Target, Attacker)
 	if not Target or not Target:IsA("Model") then return end
@@ -105,19 +137,6 @@ function Bone.DodgeRandomTP(Target, Attacker)
 end
 
 
-local Connections = {}
-local Weapon_SwapAnimation = {}
-local WeaponCounter = {}
-local DidSwap = {}
-local WeaponArsenal = {
-	"Tooth_And_Nail",
-	"Judgement",
-	"Fang",
-	"DrakeFang",
-	"Glock,"
-}
-
-
 
 
 local Welds = Combat_Data.Welds
@@ -132,7 +151,8 @@ local function Mode1_R(char)
 	local torso = char:FindFirstChild("Torso")
 	local rightArm = char:FindFirstChild("Right Arm")
 	
-	local Identifier = plr or getUniqueId(char)
+	
+	local Identifier = plr or GetNPCFromCharacter(char)
 	if not Identifier then return end
 	if EquipDebounce[Identifier] then return end
 	

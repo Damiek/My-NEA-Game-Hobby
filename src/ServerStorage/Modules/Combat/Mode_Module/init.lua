@@ -72,6 +72,16 @@ local function clearAttackState(char)
 	char:SetAttribute("Swing", false)
 end
 
+function module.CleanupForPlayer(identifier)
+	if TransformConnections[identifier] then
+		pcall(function()
+			TransformConnections[identifier]:Disconnect()
+		end)
+		TransformConnections[identifier] = nil
+	end
+	EquipDebounce[identifier] = nil
+end
+
 ---------------------------------------------------------------------
 -- MODE 1 TRANSFORMATION
 ---------------------------------------------------------------------

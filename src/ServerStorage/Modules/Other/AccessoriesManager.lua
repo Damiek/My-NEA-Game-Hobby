@@ -182,9 +182,26 @@ function AccessoriesManager.UnequipAccessory(char, accessoryName) -- This is the
 
 end
 
+
+function AccessoriesManager.LoadRaceAcessories(PLR)
+    
+end
+
 function AccessoriesManager.cleanup(plr) -- Cleans up the welds when the player leaves
     if AcessoryWelds[plr] then
         AcessoryWelds[plr] = nil 
+    end
+end
+
+function AccessoriesManager.CleanupForPlayer(plr)
+    if AcessoryWelds[plr] then
+        AcessoryWelds[plr] = nil
+    end
+    if AccessoryAnims[plr] then
+        pcall(function()
+            AccessoryAnims[plr]:Stop()
+        end)
+        AccessoryAnims[plr] = nil
     end
 end
 

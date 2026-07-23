@@ -6,6 +6,10 @@ local PLRModule = require(SSModules.Objects.plr)
 Players.PlayerAdded:Connect(function(plr)
 	plr.CharacterAdded:Connect(function(char)
 		task.wait(0.01)
+		local oldPLR = PLRModule.GetPLRFromPlayer(plr)
+		if oldPLR then
+			oldPLR:Cleanup()
+		end
 		PLRModule.new(plr, "SLOT_1")
 		print("created plr", plr)
 	end)

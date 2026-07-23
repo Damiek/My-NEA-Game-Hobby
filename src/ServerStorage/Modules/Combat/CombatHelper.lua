@@ -20,6 +20,7 @@ local MuchachoHitbox = require(SSModules.Hitboxes.MuchachoHitbox)
 local WeaponsStatsModule = require(SSModules.Dictionaries.WeaponStats)
 local HelpfullModule = require(SSModules.Other.Helpful)
 local Combat_Data = require(ServerStorage.Modules.Combat.Data.CombatData)
+local IntentService = require(SSModules.Combat.IntentService)
 
 local VFX_Event: RemoteEvent = Events.VFX
 local MovementEvent: RemoteEvent = Events.Movement
@@ -61,6 +62,8 @@ function module.Attack(char, npc)
 		return
 	end
 
+	IntentService.SetIntent(char, npc, "Swing")
+
 	local currentWeapon = char:GetAttribute("CurrentWeapon")
 
 	-- Begin swing
@@ -79,6 +82,7 @@ function module.Attack(char, npc)
 	local SwingAnim = ServerCombatModule.getSwingAnims(char, currentWeapon)
 	local playSwingAnimation = hum.Animator:LoadAnimation(SwingAnim)
 	local swingReset = WeaponStats.SwingReset
+	local swingFade = WeaponStats.SwingFade
 
 	-- Disconnect any lingering connections from a previous swing
 	if Connections[Identifier] then
@@ -116,6 +120,7 @@ function module.Attack(char, npc)
 		char:SetAttribute("Attacking", false)
 		char:SetAttribute("Swing", false)
 		FeintFlags[Identifier] = false
+		IntentService.SetIntent(char, npc, "None")
 	end
 
 	hitStartConn = playSwingAnimation:GetMarkerReachedSignal("HitStart"):Connect(function()
@@ -184,7 +189,7 @@ function module.Attack(char, npc)
 		cleanupSwing()
 	end)
 
-	playSwingAnimation:Play()
+	playSwingAnimation:Play(swingFade)
 	VFX_Event:FireAllClients("SwingEffect", SwingEffect, char)
 	SoundsModule.PlaySound(WeaponSounds[currentWeapon].Combat.Swing, torso)
 
@@ -215,6 +220,7 @@ function module.CancelAttack(char, npc)
 	end
 	HelpfullModule.ResetMobility(char)
 	VFX_Event:FireAllClients("DestroyVFX", char, SwingEffect)
+	IntentService.SetIntent(char, npc, "None")
 	
 	local sound = char:FindFirstChild("Swing",true)
 	if sound then
@@ -230,6 +236,7 @@ function module.RevengeCounter(char: Model, npc)
 
 	char:SetAttribute("CanRevenge", false)
 	char:SetAttribute("Iframes", true)
+	IntentService.SetIntent(char, npc, "RevengeCounter")
 
 	local echar = tag.Value
 	if not echar then
@@ -367,6 +374,27 @@ function module.RevengeCounter(char: Model, npc)
 		
 	end
 end
+function module.CleanupForPlayer(identifier)
+	if Connections[identifier] then
+		for _, conn in pairs(Connections[identifier]) do
+			if conn then
+				pcall(function()
+					conn:Disconnect()
+				end)
+			end
+		end
+		Connections[identifier] = nil
+	end
+	if HitBoxes[identifier] then
+		pcall(function()
+			HitBoxes[identifier]:Stop()
+		end)
+		HitBoxes[identifier] = nil
+	end
+	FeintFlags[identifier] = nil
+	BlinkCooldowns[identifier] = nil
+end
+
 function module.Blink(char, npc, target)
 	local plr = Players:GetPlayerFromCharacter(char)
 	local Identifier = plr or npc
@@ -374,6 +402,7 @@ function module.Blink(char, npc, target)
 		return
 	end
 	BlinkCooldowns[Identifier] = tick()
+	IntentService.SetIntent(char, npc, "Blink")
 
 	local HRP = char:FindFirstChild("HumanoidRootPart")
 	local Hum = char.Humanoid

@@ -30,6 +30,7 @@ local ServerCombatModule = require(SSModule.CombatModule)
 local WeaponStatsModule = require(SSModule.Dictionaries.WeaponStats)
 local PassiveManger = require(SSModule.Combat.PassiveManger)
 local StunHandler = require(SSModule.Other.StunHandlerV2)
+local IntentService = require(SSModule.Combat.IntentService)
 
 
 
@@ -230,6 +231,8 @@ function module.HyprParrying(char, eChar, hitpos, npc)
 	char:SetAttribute("Stunned", true)
 	eChar:SetAttribute("Stunned", true)
 	eChar:SetAttribute("Iframes",true)
+	IntentService.SetIntent(char, nil, "None")
+	IntentService.SetIntent(eChar, nil, "None")
 
 
 
@@ -269,24 +272,28 @@ function module.HyprParrying(char, eChar, hitpos, npc)
 	local targetPlr = players:GetPlayerFromCharacter(eChar) or npc
     Combat_Data.ActiveRecoveryTracks[targetPlr] = recover
 	--stagger:Play()
-	eChar:SetAttribute("CanRevenge", true)
 	SoundsModule.PlaySound(HyprSound,EHRP)
 
-	task.delay(1.2, function()
-		if eChar and eChar.Parent then
-			char:SetAttribute("CanRevenge", false)
-			eChar:SetAttribute("Iframes",false)
-			print("help me")
-			ResetMobility(eChar)
-			ResetMobility(char)
-			Ehum.AutoRotate = true
-			hum.AutoRotate = true
-			tag:Destroy()
-		end
+	task.delay(0.2, function()
+		if not eChar or not eChar.Parent then return end
+		eChar:SetAttribute("CanRevenge", true)
+
+		task.delay(1.2, function()
+			if eChar and eChar.Parent then
+				eChar:SetAttribute("CanRevenge", false)
+				eChar:SetAttribute("Iframes",false)
+				print("help me")
+				ResetMobility(eChar)
+				ResetMobility(char)
+				Ehum.AutoRotate = true
+				hum.AutoRotate = true
+				tag:Destroy()
+			end
+		end)
 	end)
 
 
-	StunHandler.Stun(char.Humanoid, 0.7, 2, 0)
+	StunHandler.Stun(char.Humanoid, 0.8, 2, 0)
 
 	Result = "Hypr-Parried"
 
@@ -350,6 +357,7 @@ function module.GuardBreak(char)
 
 	char:SetAttribute("Blocking", 0)
 	char:SetAttribute("IsBlocking", false)
+	IntentService.SetIntent(char, nil, "None")
 
 	local plr = players:GetPlayerFromCharacter(char)
 	if plr then
@@ -371,6 +379,7 @@ function module.ActivateBlocking(char, npc)
 	BlockingAnims[Identifier]:Play()
 
 	char:SetAttribute("IsBlocking", true)
+	IntentService.SetIntent(char, npc, "Block")
 
 	local walkSpeed = WeaponStatsModule.getStats(char:GetAttribute("CurrentWeapon")).BlockingWalkSpeed
 
@@ -386,6 +395,7 @@ function module.DeactivateBlocking(char, npc)
 	BlockingAnims[Identifier]:Stop()
 	char:SetAttribute("IsBlocking", false)
 	char:SetAttribute("LastStopTime", tick())
+	IntentService.SetIntent(char, npc, "None")
 
 	ResetMobility(char)
 end

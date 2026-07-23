@@ -144,6 +144,7 @@ function module.triggerEffects(parentObject, char, customOffset)
 
 	local EffectPart = parentObject:Clone()
 	EffectPart.Parent = workspace.VFX
+	EffectPart:SetAttribute("OwnerCharacter", char.Name)
 
 	local offsetCFrame = customOffset or CFrame.new(0, 0, -0.894)
 	EffectPart.CFrame = HRP.CFrame * offsetCFrame * (parentObject.CFrame - parentObject.Position)
@@ -258,96 +259,134 @@ function module.AfterImage(char, anim, type)
 		end)
 	else
 		if type == "AstralDodge" then
-			local PoseTable = {
-				[0] = ElementAnims.Astral.AstralDodge0,
-				[1] = ElementAnims.Astral.AstralDodge1,
-				[2] = ElementAnims.Astral.AstralDodge2,
-				[3] = ElementAnims.Astral.AstralDodge3,
-				[4] = ElementAnims.Astral.AstralDodge4,
-				[5] = ElementAnims.Astral.AstralDodge5,
-				[6] = ElementAnims.Astral.AstralDodge6,
-				[7] = ElementAnims.Astral.AstralDodge7,
-			}
 			char.Archivable = true
+			local sourceTrack = RS.Animations.Weapons.ShootingStar.Dodging.W
+
+			local Colors = {
+				{ Fill = Color3.fromRGB(119, 0, 255), Outline = Color3.fromRGB(113, 5, 255) },
+				{ Fill = Color3.fromRGB(170, 0, 255), Outline = Color3.fromRGB(140, 0, 200) },
+				{ Fill = Color3.fromRGB(80, 0, 200), Outline = Color3.fromRGB(60, 0, 180) },
+				{ Fill = Color3.fromRGB(200, 50, 255), Outline = Color3.fromRGB(170, 30, 220) },
+				{ Fill = Color3.fromRGB(50, 100, 255), Outline = Color3.fromRGB(30, 80, 220) },
+			}
+
 			coroutine.wrap(function()
-				while char:GetAttribute("AstralDodgeActive") do
-					task.wait(0.1) -- intermission for clones
-					if not char then
-						break
-					end
+				for i = 1, 8 do
+					task.wait(0.04)
+					if not char then break end
+
 					local clone = char:Clone()
 					clone.Humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 					clone.Name = "AfterImage"
+
+					local colorIndex = (i - 1) % #Colors + 1
+					local startColor = Colors[colorIndex]
+					local nextColor = Colors[colorIndex % #Colors + 1]
+
 					local Highlight = Instance.new("Highlight")
 					Highlight.Parent = clone
 					Highlight.DepthMode = Enum.HighlightDepthMode.Occluded
 					Highlight.FillTransparency = 0.4
-					Highlight.FillColor = Color3.fromRGB(119, 0, 255)
+					Highlight.FillColor = startColor.Fill
 					Highlight.OutlineTransparency = 0.5
-					Highlight.OutlineColor = Color3.fromRGB(113, 5, 255)
+					Highlight.OutlineColor = startColor.Outline
+
 					local PointLight = Instance.new("PointLight", clone.HumanoidRootPart)
 					PointLight.Brightness = 2.5
-					PointLight.Color = Color3.fromRGB(119, 0, 255)
+					PointLight.Color = startColor.Fill
 					PointLight.Range = 6
 					PointLight.Shadows = false
-					for i, part in pairs(clone:GetDescendants()) do
-						if part.Name == "ShootingStar" then -- We dont need to pose weapons
+
+					for _, part in pairs(clone:GetDescendants()) do
+						if part.Name == "ShootingStar" then
 							part:Destroy()
 						end
-
-						if
-							part:IsA("Script")
-							or part:IsA("LocalScript")
-							or part:IsA("ModuleScript")
-							or part:IsA("BillboardGui")
-						then
+						if part:IsA("Script") or part:IsA("LocalScript") or part:IsA("ModuleScript") or part:IsA("BillboardGui") then
 							part:Destroy()
 						end
-
-						if part:IsA("BasePart") or part:IsA("MeshPart") and part.Name ~= "HumanoidRootPart" then
-							if part:IsA("MeshPart") then
-								part.TextureID = ""
-							end
-
+						if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+							if part:IsA("MeshPart") then part.TextureID = "" end
 							part.Transparency = 0.5
 							part.CollisionGroup = "VFX_Models"
 							part.Color = Color3.fromRGB(170, 170, 255)
 						end
 					end
+
 					clone.Parent = workspace.VFX
 					clone.HumanoidRootPart.Transparency = 1
 					clone.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame
 					clone.HumanoidRootPart.Anchored = true
 
-					local animTrack = clone.Humanoid.Animator:LoadAnimation(PoseTable[math.random(0, 7)])
-					animTrack:Play(0) -- 0 fade time = instant
-					animTrack:AdjustSpeed(0) -- Freeze on first frame immediately
-					animTrack.TimePosition = 0
+					if sourceTrack then
+						local animTrack = clone.Humanoid.Animator:LoadAnimation(sourceTrack)
+						animTrack:Play(0)
+						animTrack:AdjustSpeed(0)
+						animTrack.TimePosition = 0.12
+					end
+
+					TS:Create(Highlight, TweenInfo.new(1.2, Enum.EasingStyle.Linear), {
+						FillColor = nextColor.Fill,
+						OutlineColor = nextColor.Outline,
+					}):Play()
+
+					TS:Create(PointLight, TweenInfo.new(1.2, Enum.EasingStyle.Linear), {
+						Color = nextColor.Fill,
+					}):Play()
 
 					task.delay(1.2, function()
-						-- Fade out all parts
-						local fadeInfo = TweenInfo.new(0.3, Enum.EasingStyle.Linear)
+						if not clone then return end
+
 						local tweensLeft = 0
 
 						for _, part in ipairs(clone:GetDescendants()) do
-							if part:IsA("BasePart") then
+							if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
 								tweensLeft += 1
-								local t = TS:Create(part, fadeInfo, { Transparency = 1 })
-								t.Completed:Connect(function()
-									tweensLeft -= 1
-									if tweensLeft <= 0 then
-										clone:Destroy()
-										PointLight:Destroy()
-									end
+
+								local randDir = Vector3.new(
+									math.random(-100, 100) / 100,
+									math.random(20, 60) / 100,
+									math.random(-100, 100) / 100
+								).Unit
+								local targetPos = part.Position + randDir * math.random(3, 8) + Vector3.new(0, math.random(2, 5), 0)
+								local targetSize = part.Size * math.random(110, 130) / 100
+
+								TS:Create(part, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+									CFrame = CFrame.new(targetPos) * part.CFrame.Rotation,
+									Size = targetSize,
+								}):Play()
+
+								task.delay(0.25, function()
+									local t = TS:Create(part, TweenInfo.new(0.3, Enum.EasingStyle.Linear), {
+										Transparency = 1,
+									})
+									t.Completed:Connect(function()
+										tweensLeft -= 1
+										if tweensLeft <= 0 and clone then
+											clone:Destroy()
+										end
+									end)
+									t:Play()
 								end)
-								t:Play()
 							end
 						end
 
-						TS:Create(Highlight, fadeInfo, {
-							FillTransparency = 1,
-							OutlineTransparency = 1,
-						}):Play()
+						if Highlight then
+							TS:Create(Highlight, TweenInfo.new(0.55, Enum.EasingStyle.Linear), {
+								FillTransparency = 1,
+								OutlineTransparency = 1,
+							}):Play()
+						end
+						if PointLight then
+							TS:Create(PointLight, TweenInfo.new(0.55, Enum.EasingStyle.Linear), {
+								Brightness = 0,
+							}):Play()
+						end
+
+						if tweensLeft <= 0 then
+							task.delay(0.6, function()
+								if clone then clone:Destroy() end
+							end)
+						end
 					end)
 				end
 			end)()
@@ -507,7 +546,7 @@ end
 
 module.DestroyEffects = function(char, effect)
 	for i, v in pairs(workspace.VFX:GetChildren()) do
-		if v.Name == effect.Name then
+		if v.Name == effect.Name and v:GetAttribute("OwnerCharacter") == char.Name then
 			v:Destroy()
 		end
 	end

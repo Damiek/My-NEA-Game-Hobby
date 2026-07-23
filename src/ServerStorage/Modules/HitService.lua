@@ -19,13 +19,18 @@ local ServerCombatModule = require(SSModules.CombatModule)
 local WeaponsStatsModule = require(SSModules.Dictionaries.WeaponStats)
 local HelpfulModule = require(SSModules.Other.Helpful)
 local StunHandler = require(SSModules.Other.StunHandlerV2)
-local BoneModule = require(SSModules.Element.Bone)
 local PassiveManger = require(SSModules.Combat.PassiveManger)
-local CombatData = require(SSModules.Combat.Data.CombatData)
 
 --- Math Constants  DO NOT TOUCH THIS WILL EFFECT ALL WEAPON SCALING
 local Point_Cap = 80 -- This where the Plateau  for dmg drop off starts
 local k = 0.2 -- This is the rate of the drop off for Wepaon Scaling
+
+local function GetNPCFromCharacter(char)
+	local plr = game.Players:GetPlayerFromCharacter(char)
+	if plr then return nil end
+	local npcModule = require(SSModules.Objects.npc)
+	return npcModule.GetNpcFromCharacter(char)
+end
 
 function module.BodyVelocity(parent, hrp, Knockback, stayTime)
 	local bv = Instance.new("BodyVelocity")
@@ -43,7 +48,7 @@ function module.Normal_Hitbox(char, weapon, eHum, npc, Hit, ...)
 	if eHum and eHum.Parent ~= char then
 		local eChar = eHum.Parent
 		local Eplr = game.Players:GetPlayerFromCharacter(eChar)
-		local Enpc = CombatData.LastResortNPC(eChar) -- We have to use the last resort because of cyclic errors
+		local Enpc = GetNPCFromCharacter(eChar)
 
 		local eHRP = eChar.HumanoidRootPart
 
@@ -150,7 +155,8 @@ function module.Normal_Hitbox(char, weapon, eHum, npc, Hit, ...)
 		module.BodyVelocity(char.HumanoidRootPart, char.HumanoidRootPart, Knockback, 0.2)
 
 		if eChar:GetAttribute("Dodges") > 1 and char:GetAttribute("Combo") >= 4 then
-			BoneModule.DodgeRandomTP(eChar, char)
+			-- BoneModule.DodgeRandomTP(eChar, char)
+			-- TODO: Replace the aboove with the element object rather than a pure modue
 		elseif char:GetAttribute("Combo") >= 4 then
 			Knockback = Knockback * 9
 			--HelpfulModule.Ragdoll(eChar,RagdollTime)
@@ -173,7 +179,7 @@ function module.Blink_Hitbox(char, weapon, eHum: Humanoid, npc, Hit, ...)
 	if eHum and eHum.Parent ~= char then
 		local eChar = eHum.Parent
 		local Eplr = game.Players:GetPlayerFromCharacter(eChar)
-		local Enpc = CombatData.LastResortNPC(eChar) -- We have to use the last resort because of cyclic errors
+		local Enpc = GetNPCFromCharacter(eChar)
 
 		local BaseDmg = 20 -- would replace with actual WPN scaling when we have it
 

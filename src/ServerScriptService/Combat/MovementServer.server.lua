@@ -18,6 +18,10 @@ local WeaponAnims = RS.Animations.Weapons
 
 local ActiveDodges = {}
 
+local function CleanupForPlayer(plr)
+	ActiveDodges[plr] = nil
+end
+
 MovementEvent.OnServerEvent:Connect(function(plr, action, ...)
 	local char = plr.Character
 	local Humanoid = char:FindFirstChildOfClass("Humanoid")
@@ -100,8 +104,9 @@ MovementEvent.OnServerEvent:Connect(function(plr, action, ...)
 	end
 
 	if action == "Dodge" then
+	print("Dodge gotten")
     local Config = {
-        DashDur = 0.2,
+        DashDur = 0.25,
         Buffer_distance = 10.0, -- Increased slightly to fully cushion network-to-physics latency
         Speed = 85
     }
@@ -123,6 +128,11 @@ MovementEvent.OnServerEvent:Connect(function(plr, action, ...)
 
     char:SetAttribute("Dodging", true)
     StatusEffects.RemoveStatusEffect(char, nil, "Burn")
+
+    local element = char:GetAttribute("Element")
+    if element == "Astral" and char:GetAttribute("Mode2") then
+        VFX_Event:FireAllClients("AfterImage", char, nil, "AstralDodge")
+    end
 
     -- 2. Calculate the authoritative speed using the pre-snapshot data
     local momentumMultiplier = 1.0 + ((preDodgeMomentum / 100) * 0.50)
@@ -158,15 +168,13 @@ MovementEvent.OnServerEvent:Connect(function(plr, action, ...)
         if TrackedVictim then
             local endpos = HRP.Position
             local Travel = (endpos - TrackedVictim.StartPos).Magnitude
-            
-            -- Account for potential network latency delay in handling the task.delay window
+        
             local actualTimeElapsed = workspace:GetServerTimeNow() - TrackedVictim.StartTime
             local timeWindow = math.max(Config.DashDur, actualTimeElapsed)
 
-            -- Calculate expected horizontal displacement max based on actual time elapsed
+  
             local ExpectedDistance = TrackedVictim.Speed * timeWindow
-            
-            -- Account for the gravity counter applied to Air Dodges
+     
             if TrackedVictim.WasAirborne then
                 local gravityVectorMagnitude = (workspace.Gravity * Config.DashDur) * timeWindow
                 ExpectedDistance = ExpectedDistance + gravityVectorMagnitude

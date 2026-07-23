@@ -24,7 +24,7 @@ Events.VFX.OnClientEvent:Connect(function(action,...)
 	if action == "SwingEffect" then
 		local effect, char =...
 
-		--CombatEffectsModule.triggerEffects(effect,char)
+		CombatEffectsModule.triggerEffects(effect,char)
 	end
 
 	if action == "DestroyVFX" then

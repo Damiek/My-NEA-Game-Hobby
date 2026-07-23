@@ -11,6 +11,7 @@ local VFX_Event = Events.VFX
 
 local HelpfullModule = require(SSModule.Other.Helpful)
 local Combat_Data = require(SSModule.Combat.Data.CombatData)
+local IntentService = require(SSModule.Combat.IntentService)
 
 -- Tables
 local ParryAnims = Combat_Data.ParryAnims
@@ -21,6 +22,11 @@ local ParryCD = {
 	Hypr = {},
 	Reg = {},
 }
+
+function ParryModule.CleanupForPlayer(identifier)
+	ParryCD.Hypr[identifier] = nil
+	ParryCD.Reg[identifier] = nil
+end
 
 function ParryModule.ParryAttempt(char, npc)
 	local Identifer = Players:GetPlayerFromCharacter(char) or npc
@@ -43,6 +49,7 @@ function ParryModule.ParryAttempt(char, npc)
 
 	char:SetAttribute("Parrying", true)
 	char:SetAttribute("Stunned", true)
+	IntentService.SetIntent(char, npc, "Parry")
 	
 	ParryAnims[Identifer] = hum:LoadAnimation(WeaponAnimsFolder[currentWeapon].Blocking.TryParry)
 	ParryAnims[Identifer]:Play()
@@ -72,6 +79,8 @@ function ParryModule.ParryAttempt(char, npc)
 	end)
 
 	ParryAnims[Identifer].Ended:Connect(function()
+		IntentService.SetIntent(char, npc, "None")
+
 		if HyprSucess[Identifer] then
 			HelpfullModule.ResetMobility(char)
 			char:SetAttribute("Parrying", false)

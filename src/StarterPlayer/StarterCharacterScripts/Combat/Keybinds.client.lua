@@ -25,7 +25,7 @@ local debounce = false
 
 local plr = game:GetService("Players").LocalPlayer
 local char = plr.Character
-local moveentobj = Movement.GetMovementObj(plr)
+local moveentobj = nil
 
 
 local MOVE_KEYS = {
@@ -189,14 +189,17 @@ end)
 
 
 uis.InputBegan:Connect(function(key, istyping)
-	if istyping or debounce then
-		return
-	end
+	if isActuallyTyping()  then print("Yop") return end
+
+	print("Yo")
+
 	if char:GetAttribute("IsTransforming") then
+		print("Yop")
 		return
 	end
 	
 	if key.KeyCode == Enum.KeyCode.F then
+		print("Yop")
 		blockingEvent:FireServer("Parry")
 		startBlocking()
 	end

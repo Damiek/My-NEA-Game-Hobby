@@ -17,15 +17,12 @@ CombatData.SuccessfulParry = {}
 CombatData.SuccessfulHyprParry = {}
 CombatData.ActiveRecoveryTracks = {}
 
-
-CombatData.ActiveNPCs = {} -- Last resort for getting npcs
-
-
-function CombatData.LastResortNPC(char)
-    if CombatData.ActiveNPCs[char] then
-        return CombatData.ActiveNPCs[char]
-    end
-    return nil
-   
+function CombatData.ClearForPlayer(identifier)
+	for key, tbl in pairs(CombatData) do
+		if type(tbl) == "table" and tbl ~= CombatData then
+			tbl[identifier] = nil
+		end
+	end
 end
+
 return CombatData

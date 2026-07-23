@@ -75,7 +75,6 @@ function Astral.C(char: Model)
 		Mode2_C(char)
 	elseif char:GetAttribute("Mode1") then
 		Mode1_C(char)
-
 	else
 		return
 	end
