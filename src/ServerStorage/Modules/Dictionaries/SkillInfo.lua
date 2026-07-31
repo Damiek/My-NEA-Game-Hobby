@@ -46,10 +46,12 @@ SkillInfo.Stats = {
 	SPT = {},
 }
 
+
+
 -- NPC skills keyed by mob name (populate when mobs are added)
 -- SkillInfo.NPCs = {
 -- 	["MobName"] = {
--- 		R = { Name = "", Type = "Heavy" },
+-- 		SkillName = "Heavy"
 -- 		Z = { Name = "", Type = "Light" },
 -- 		X = { Name = "", Type = "Light" },
 -- 		C = { Name = "", Type = "Heavy" },

@@ -20,6 +20,7 @@ local WeaponsStatsModule = require(SSModules.Dictionaries.WeaponStats)
 local HelpfulModule = require(SSModules.Other.Helpful)
 local StunHandler = require(SSModules.Other.StunHandlerV2)
 local PassiveManger = require(SSModules.Combat.PassiveManger)
+local Threarts = require(SSModules.AI.ThreatTable)
 
 --- Math Constants  DO NOT TOUCH THIS WILL EFFECT ALL WEAPON SCALING
 local Point_Cap = 80 -- This where the Plateau  for dmg drop off starts
@@ -27,8 +28,10 @@ local k = 0.2 -- This is the rate of the drop off for Wepaon Scaling
 
 local function GetNPCFromCharacter(char)
 	local plr = game.Players:GetPlayerFromCharacter(char)
-	if plr then return nil end
-	local npcModule = require(SSModules.Objects.npc)
+	if plr then
+		return nil
+	end
+   local npcModule = require(SSModules.Objects.npc)
 	return npcModule.GetNpcFromCharacter(char)
 end
 
@@ -49,6 +52,11 @@ function module.Normal_Hitbox(char, weapon, eHum, npc, Hit, ...)
 		local eChar = eHum.Parent
 		local Eplr = game.Players:GetPlayerFromCharacter(eChar)
 		local Enpc = GetNPCFromCharacter(eChar)
+		local attackerNpcObject = GetNPCFromCharacter(char) and require(SSModules.Objects.npc).GetNpcFromCharacter(char)
+		local DEF_AIObj = nil
+		if Enpc then
+			DEF_AIObj = Enpc.AIObject
+		end
 
 		local eHRP = eChar.HumanoidRootPart
 
@@ -77,6 +85,21 @@ function module.Normal_Hitbox(char, weapon, eHum, npc, Hit, ...)
 		local RagdollTime = WeaponStats.RagdollTime
 		local stunTime = WeaponStats.StunTime
 
+		if DEF_AIObj then
+			local isSwinging = eChar:GetAttribute("Swing") == true
+			local isAttacking = eChar:GetAttribute("Attacking") == true
+
+			if not isSwinging and not isAttacking then
+				if DEF_AIObj.HyprParryChance and math.random() < DEF_AIObj.HyprParryChance then
+					eChar:SetAttribute("HyprParrying", true)
+					return "HyprParried"
+				elseif DEF_AIObj.ParryChance and math.random() < DEF_AIObj.ParryChance then
+					eChar:SetAttribute("Parrying", true)
+					return "Parried"
+				end
+			end
+		end
+
 		local stop, result =
 			HelpfulModule.CheckForStatus(eChar, char, Enpc, BaseDmg, Hit.CFrame, true, true, true, true)
 		print(result, "helpful result")
@@ -84,15 +107,21 @@ function module.Normal_Hitbox(char, weapon, eHum, npc, Hit, ...)
 			return result
 		end
 
-		local PassiveCheckDmg, isCrit, damageAlreadydealt =
-			PassiveManger.M1LandedPassive(char, eChar, Truedamage, STAT_POINTS)
+		local PassiveCheckDmg, isCrit, damageAlreadydealt = PassiveManger.M1LandedPassive(char, eChar, Truedamage, STAT_POINTS)
 
 		print(PassiveCheckDmg)
 
 		if damageAlreadydealt == false then
-			eHum:TakeDamage(PassiveCheckDmg)
+			HelpfulModule.DamageDealer(eChar, PassiveCheckDmg)
 		end
 
+		if attackerNpcObject and attackerNpcObject.AIObject and attackerNpcObject.AIObject.Threats then
+			Threarts.RegisterHit(attackerNpcObject.AIObject, eChar, PassiveCheckDmg)
+		end
+
+		if Enpc and Enpc.AIObject and Enpc.AIObject.Threats then
+			Threarts.RegisterDamage(Enpc.AIObject, char, PassiveCheckDmg)
+		end
 		eChar:SetAttribute("InCombat", true)
 		local KarmaDamage = 0
 		if Eplr then
@@ -104,7 +133,7 @@ function module.Normal_Hitbox(char, weapon, eHum, npc, Hit, ...)
 		end
 
 		ServerCombatModule.stopAnims(eHum)
-		if Dodges > 1 then
+		if Dodges and Dodges > 1 then
 			print("Dodged hitbox VFX")
 		else
 			VFX_Event:FireAllClients("CombatEffects", RS.Effects.Combat.Blood, Hit.CFrame, 3)
@@ -123,28 +152,18 @@ function module.Normal_Hitbox(char, weapon, eHum, npc, Hit, ...)
 				VFX_Event:FireAllClients("Highlight", eChar, 0.5, Color3.fromRGB(255, 0, 0), Color3.fromRGB(255, 0, 0))
 			end
 		else
-			if char:GetAttribute("Element") == "Astral" then
-				VFX_Event:FireAllClients(
-					"Highlight",
-					eChar,
-					0.5,
-					Color3.fromRGB(138, 0, 229),
-					Color3.fromRGB(138, 0, 229)
-				)
-			else
-				VFX_Event:FireAllClients(
-					"Highlight",
-					eChar,
-					0.5,
-					Color3.fromRGB(255, 255, 255),
-					Color3.fromRGB(246, 211, 211)
-				)
-			end
+			VFX_Event:FireAllClients(
+				"Highlight",
+				eChar,
+				0.5,
+				Color3.fromRGB(255, 255, 255),
+				Color3.fromRGB(246, 211, 211)
+			)
 		end
 
 		SoundsModule.PlaySound(WeaponSounds[weapon].Combat.Hit, eChar.Torso)
 
-		if eChar:GetAttribute("Dodges") > 1 then
+		if eChar:GetAttribute("Dodges") and eChar:GetAttribute("Dodges") > 1 then
 			local hitAnim = WeaponsAnimations.TwinSpears.Dodge["Dodge" .. char:GetAttribute("Combo")]
 			eHum.Animator:LoadAnimation(hitAnim):Play()
 			VFX_Event:FireAllClients("AfterImage", eChar, hitAnim, nil)
@@ -154,9 +173,9 @@ function module.Normal_Hitbox(char, weapon, eHum, npc, Hit, ...)
 
 		module.BodyVelocity(char.HumanoidRootPart, char.HumanoidRootPart, Knockback, 0.2)
 
-		if eChar:GetAttribute("Dodges") > 1 and char:GetAttribute("Combo") >= 4 then
+		if eChar:GetAttribute("Dodges") and eChar:GetAttribute("Dodges") > 1 and char:GetAttribute("Combo") >= 4 then
 			-- BoneModule.DodgeRandomTP(eChar, char)
-			-- TODO: Replace the aboove with the element object rather than a pure modue
+			-- TODO: Replace the aboove with the element object rather than a pure module
 		elseif char:GetAttribute("Combo") >= 4 then
 			Knockback = Knockback * 9
 			--HelpfulModule.Ragdoll(eChar,RagdollTime)
@@ -172,7 +191,7 @@ function module.Normal_Hitbox(char, weapon, eHum, npc, Hit, ...)
 	return "Missed"
 end
 
-function module.Blink_Hitbox(char, weapon, eHum: Humanoid, npc, Hit, ...)
+function module.Blink_Hitbox(char, weapon, eHum, npc, Hit, ...)
 	local hitAnim = ...
 	local Truehit = hitAnim
 

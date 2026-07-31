@@ -8,8 +8,6 @@ local UI_Update = Events.UI_Update
 local VFX_Event = Events.VFX
 local Movement_Event = Events.Movement
 
-
-
 -- Maths Contants
 local p = 2.0 -- Soft Cap Exponent for Crit Dmg
 local BaseCritDmg = 1.5 -- Base Crit Dmg Multiplier
@@ -18,6 +16,10 @@ local MaxBonus = 1.7 -- Max Crit Dmg Multiplier
 local CritDropoffRate = 0.02
 local BaseCritRate = 0.15 -- In %
 local MaxCritRate = 0.45 -- Max Crit from DEX
+
+local MaxdownTime = 22
+local Reduction_Range = 2
+local K_Time = 15 -- "the half life constant"
 
 local function CalcCrit(DEX: number)
 	local roll = math.random(1, 100)
@@ -29,6 +31,42 @@ local function CalcCrit(DEX: number)
 		return true
 	else
 		return false
+	end
+end
+
+local function Ragdoll(char, ragtime)
+	task.spawn(function()
+		if char:GetAttribute("IsRagdoll") then
+			return
+		end
+
+		char:SetAttribute("IsRagdoll", true)
+		task.wait(ragtime)
+		char:SetAttribute("IsRagdoll", false)
+		char:SetAttribute("iframes", true)
+		task.wait(0.6)
+		char:SetAttribute("iframes", false)
+	end)
+end
+
+local function DamageDealer(char, damage)
+	local hum = char:FindFirstChildOfClass("Humanoid") :: Humanoid
+	if not hum or not char then
+		return
+	end
+
+	if hum.Health > damage then
+		hum:TakeDamage(damage) -- Take the damage
+	else
+		hum.Health = 1
+		-- This is where the knockdown logic would go
+		local END = char:GetAttribute("END") or 1
+		local downtime = MaxdownTime - (Reduction_Range * (END / (END + K_Time)))
+		Ragdoll(char, downtime)
+		char:SetAttribute("Downed", true)
+		task.delay(downtime, function()
+			char:SetAttribute("Downed", false)
+		end)
 	end
 end
 
@@ -79,11 +117,11 @@ function PassiveManger.M1LandedPassive(Attacker, Defender, damage, STAT_POINTS) 
 				MultipliedDamage = 0
 				Defender:SetAttribute("Dodges", math.max(0, DodgeCounter - 1))
 				Defender:SetAttribute("InCombat", true)
-				TargetHum:TakeDamage(MultipliedDamage)
+				DamageDealer(Defender, MultipliedDamage)
 				Attack_Dodged = true
 				damageAlreadydealt = true
 			else
-				TargetHum:TakeDamage(MultipliedDamage)
+				DamageDealer(Defender, MultipliedDamage)
 				damageAlreadydealt = true
 			end
 		end
@@ -113,7 +151,7 @@ function PassiveManger.M1LandedPassive(Attacker, Defender, damage, STAT_POINTS) 
 					if Karma <= 0 then
 						break
 					end
-					TargetHum:TakeDamage(dotDamage)
+					DamageDealer(Defender, dotDamage)
 					totalDamage += dotDamage
 
 					Karma = math.max(0, Karma - (karmaDecayRate * tickRate))
@@ -144,7 +182,7 @@ function PassiveManger.M1LandedPassive(Attacker, Defender, damage, STAT_POINTS) 
 		if Attacker_Second_ModeCheck then
 			local SPT = STAT_POINTS.SPT
 			local SPT_Bonus = 1
-			local SPTScalingFactor = 0.001
+			local SPTScalingFactor = 0.01
 			SPT_Bonus = 1 + (SPT * SPTScalingFactor)
 
 			damage = damage * SPT_Bonus
@@ -171,10 +209,7 @@ end
 function PassiveManger.DefensivePassive(char, damage) -- This refers to when char blocks an attack
 end
 
-
-
 function PassiveManger.DodgeLanded(char) -- As the name impled this is when a char succesfully dodged something
-	
 end
 
 function PassiveManger.BackStabPassive(char, damage) -- This refers to when char lands a backstab attack
@@ -182,7 +217,5 @@ end
 
 function PassiveManger.OnSkillLanded(attacker, defender, damage, skill) -- this
 end
-
-
 
 return PassiveManger

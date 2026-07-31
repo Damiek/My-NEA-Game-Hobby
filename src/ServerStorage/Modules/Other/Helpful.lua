@@ -26,12 +26,29 @@ local k = 0.02 -- This is the rate of the drop off for DEX Crit Rate Scaling
 local BaseCritRate = 0.15 -- Base Crit Rate %
 local MaxCritRate = 0.45 -- Max Crit Rate % given by DEX Points
 
-function module.DamageDealer(char, damage)
-	local hum = char.Humanoid
-	if hum.health > damage then
+
+local MaxdownTime = 22  
+local Reduction_Range = 2
+local K_Time =  15 -- "the half life constant"
+
+function module.DamageDealer(char :Model, damage)
+	local hum = char:FindFirstChildOfClass("Humanoid") ::Humanoid
+    if not hum or not char then return end 
+	
+	if hum.Health > damage then
 		hum:TakeDamage(damage) -- Take the damage
 	else
+		hum.Health = 1
 		-- This is where the knockdown logic would go
+		local END = char:GetAttribute("END") or 1 
+		local downtime = MaxdownTime - (Reduction_Range * (END/ (END + K_Time)))
+		module.Ragdoll(char,downtime)
+		char:SetAttribute("Downed", true)
+
+		-- TODO: Create a functiuon that creates the prox prompt for downed enemies 
+		task.delay(downtime, function()
+			char:SetAttribute("Downed", false)
+		end)
 	end
 end
 
@@ -43,8 +60,6 @@ function module.ChangeWeapon(plr, char, torso)
 	char:SetAttribute("Attacking", false)
 	char:SetAttribute("iframes", false)
 	char:SetAttribute("IsBlocking", false)
-	char:SetAttribute("Blocking", 0)
-	char:SetAttribute("Karma", 0)
 	char:SetAttribute("Mode1", false)
 	char:SetAttribute("Mode2", false)
 	char:SetAttribute("Parrying", false)
@@ -246,6 +261,7 @@ end
 
 function module.Ragdoll(char, ragdollTime)
 	task.spawn(function()
+		print("Ragdoll")
 		if char:GetAttribute("IsRagdoll") then
 			return
 		end
@@ -253,11 +269,9 @@ function module.Ragdoll(char, ragdollTime)
 		char:SetAttribute("IsRagdoll", true)
 		task.wait(ragdollTime)
 		char:SetAttribute("IsRagdoll", false)
-		char:SetAttribute("iframes", true)
-		Instance.new("Highlight", char)
+		char:SetAttribute("Iframes", true)
 		task.wait(0.6)
-		char.Highlight:Destroy()
-		char:SetAttribute("iframes", false)
+		char:SetAttribute("Iframes", false)
 	end)
 end
 function module.ManageStamina(char, action)

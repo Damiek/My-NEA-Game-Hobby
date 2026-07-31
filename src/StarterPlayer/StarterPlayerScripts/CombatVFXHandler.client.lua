@@ -32,6 +32,11 @@ Events.VFX.OnClientEvent:Connect(function(action,...)
 		CombatEffectsModule.DestroyEffects(char, effect)
 	end
 
+	if action == "Trail" then
+		local target = ... 
+		
+	end
+
 	if action == "HyprParry" then 
 		local char,echar = ...
 		CombatEffectsModule.HyprVfx(char,echar,true)

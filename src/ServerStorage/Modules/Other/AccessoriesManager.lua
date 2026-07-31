@@ -217,6 +217,8 @@ end
 
     I may or not add to a check that checks that for the legs accessory and makes a secondary weld to the right leg.
 
+    Also i would need to add a race function that loads accesoires based on the char's race species 
+
 
     Functions:
     - EquipAccessory(char, accessoryName): Equips the specified accessory to the character.

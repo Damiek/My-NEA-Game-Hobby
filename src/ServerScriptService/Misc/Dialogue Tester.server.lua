@@ -1,5 +1,6 @@
 local RS= game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
+local text = require(RS.Modules.text)
 local Prox:ProximityPrompt = workspace.Tester.STart
 
 
@@ -23,6 +24,9 @@ RS:FindFirstChild("DialogueRemote",true):FireAllClients(RS.Dialogues.Dialogue_Co
 Prox.Triggered:Connect(function()
 RS:FindFirstChild("DialogueRemote",true):FireAllClients(RS.Dialogues.Dialogue_Configs.TestDialogue,DialogueParams2)
 end)
+
+-- ignore
+text.UI_Set(nil)
 
 --[[
 This is the gist of everything

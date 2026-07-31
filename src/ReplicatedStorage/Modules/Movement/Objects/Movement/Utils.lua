@@ -44,7 +44,7 @@ local function WallJumpBars(side, MovementObj: Type.MovementObj)
     local BOTTOM = UDim2.new(-0.034, 0, 0.95, 0)
 
     local _, speedRatio = GetFlowModifiers(MovementObj)
-    local jumpFovTarget = math.clamp(100 * speedRatio, 95, 130)
+    local jumpFovTarget = math.clamp(100 * speedRatio, 80, 90)
 
     local FOVChange: Tween = TS:Create(cam, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { FieldOfView = jumpFovTarget })
     FOVChange:Play()
@@ -79,7 +79,7 @@ function Ultils.StartWallrunBars(side: number, MovementObj: Type.MovementObj)
     local Bottom_tilt = UItable.bottom_tilt
 
     local momentumRatio, speedRatio = GetFlowModifiers(MovementObj)
-    local targetFov = math.clamp(75 + (20 * momentumRatio) * speedRatio, 70, 110)
+    local targetFov = math.clamp(75 + (20 * momentumRatio) * speedRatio, 70, 78)
     
     local offsetX = -side * (1.2 * speedRatio)
     local offsetY = -0.4 * momentumRatio
@@ -136,7 +136,7 @@ function Ultils.StartDodgeCam(Speed, MovementObj: Type.MovementObj)
     local hum = MovementObj and MovementObj.char and MovementObj.char:FindFirstChildOfClass("Humanoid")
     local dodgeDir = MovementObj and MovementObj.InfoTable.Dodge.Dir or Vector3.zero
     
-    local FovBoost = math.clamp(70 + (Speed * 0.30), 75, 120)
+    local FovBoost = math.clamp(70 + (Speed * 0.30), 75, 80)
     
     TS:Create(cam, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { FieldOfView = FovBoost }):Play()
     

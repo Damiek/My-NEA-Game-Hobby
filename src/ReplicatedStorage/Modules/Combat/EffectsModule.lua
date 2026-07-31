@@ -275,7 +275,7 @@ function module.AfterImage(char, anim, type)
 					task.wait(0.04)
 					if not char then break end
 
-					local clone = char:Clone()
+					local clone = char:Clone() :: Model
 					clone.Humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 					clone.Name = "AfterImage"
 
@@ -283,7 +283,7 @@ function module.AfterImage(char, anim, type)
 					local startColor = Colors[colorIndex]
 					local nextColor = Colors[colorIndex % #Colors + 1]
 
-					local Highlight = Instance.new("Highlight")
+					local Highlight = clone:FindFirstChildOfClass("Highlight") or Instance.new("Highlight")
 					Highlight.Parent = clone
 					Highlight.DepthMode = Enum.HighlightDepthMode.Occluded
 					Highlight.FillTransparency = 0.4

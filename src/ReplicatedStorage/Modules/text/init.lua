@@ -2,6 +2,7 @@ local module = {}
 local RS = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
+local CollectionService = game:GetService("CollectionService")
 
 local FontsModule = require(script.Fonts)
 local DialogueBindable = RS:FindFirstChild("DialogueBindable", true)
@@ -29,6 +30,7 @@ local CONFIG = {
 
 local TARGET_DISPLAY_SIZE = 20
 local DEFAULT_FONT = "MinecraftFont"
+local UI_SET_TAG = "AutoLetterUI"
 
 -- =============================================
 -- FONT INITIALIZATION
@@ -102,9 +104,9 @@ local function buildStringFolder(fontName, fontData, fontMap, displaySize)
 	local parsed = parseFontData(fontData)
 	local folder = Instance.new("Folder")
 	folder.Name = fontName
-	folder:SetAttribute("LineHeight",   parsed.lineHeight)
-    folder:SetAttribute("DisplaySize",  displaySize or parsed.lineHeight)
-    folder.Parent = script
+	folder:SetAttribute("LineHeight", parsed.lineHeight)
+	folder:SetAttribute("DisplaySize", displaySize or parsed.lineHeight)
+	folder.Parent = script
 
 	for _, v in ipairs(parsed.characterTable) do
 		local charFrame = Instance.new("Frame")
@@ -130,7 +132,7 @@ end
 
 local stringFolders = {}
 for fontName, fontInfo in pairs(FontsModule.FontTable) do
-	stringFolders[fontName] = buildStringFolder(fontName, fontInfo.FontData, fontInfo.FontMap,fontInfo.DisplaySize)
+	stringFolders[fontName] = buildStringFolder(fontName, fontInfo.FontData, fontInfo.FontMap, fontInfo.DisplaySize)
 end
 
 -- =============================================
@@ -210,16 +212,13 @@ local function applyCorruptEffect(wrapperFrame, letterFrame, imageLabel, baseWid
 	local active = true
 	task.spawn(function()
 		while active and letterFrame.Parent do
-			-- Replicate vertical scatter and letter spacing corruption
 			local offsetY = math.random(-12, 12)
 			local offsetX = math.random(-3, 3)
 			letterFrame.Position = UDim2.fromOffset(offsetX, offsetY)
 
-			-- Replicate sudden random font size mutations
 			local scaleMultiplier = math.random(7, 16) / 10
 			wrapperFrame.Size = UDim2.fromOffset(baseWidth * scaleMultiplier, baseHeight * scaleMultiplier)
 
-			-- Alpha rendering static pop
 			imageLabel.ImageTransparency = math.random(0, 4) / 10
 
 			task.wait(math.random(3, 8) / 100)
@@ -403,8 +402,8 @@ local currentHeaderFrame
 
 local function subtitleSingle(str, plr, isLast)
 	local folder = stringFolders[DEFAULT_FONT]
-	local rawLineHeight  = folder:GetAttribute("LineHeight")  or 18
-    local targetDisplay  = folder:GetAttribute("DisplaySize") or TARGET_DISPLAY_SIZE
+	local rawLineHeight = folder:GetAttribute("LineHeight") or 18
+	local targetDisplay = folder:GetAttribute("DisplaySize") or TARGET_DISPLAY_SIZE
 	local normScale = targetDisplay / rawLineHeight
 
 	local headerText
@@ -651,8 +650,8 @@ function module.UI_inject(targetFrame, text, fontName, options)
 		return function() end
 	end
 
-	local rawLineHeight  = folder:GetAttribute("LineHeight")  or 18
-    local targetDisplay  = folder:GetAttribute("DisplaySize") or TARGET_DISPLAY_SIZE
+	local rawLineHeight = folder:GetAttribute("LineHeight") or 18
+	local targetDisplay = folder:GetAttribute("DisplaySize") or TARGET_DISPLAY_SIZE
 	local normalizationMultiplier = targetDisplay / rawLineHeight
 
 	local letterDelay = options.letterDelay ~= nil and options.letterDelay or CONFIG.LETTER_DELAY
@@ -661,6 +660,11 @@ function module.UI_inject(targetFrame, text, fontName, options)
 	local clearFirst = options.clearFirst ~= false
 	local onComplete = options.onComplete
 	local textScale = options.textScale ~= nil and options.textScale or 1
+	local useScale = options.useScale == true -- nil/false -> offset, true -> scale
+
+	-- Alignment passthrough: defaults to Left/Top to match original hardcoded behavior
+	local horizontalAlignment = options.horizontalAlignment or Enum.HorizontalAlignment.Left
+	local verticalAlignment = options.verticalAlignment or Enum.VerticalAlignment.Top
 
 	local finalScaleModifier = normalizationMultiplier * textScale
 
@@ -678,9 +682,10 @@ function module.UI_inject(targetFrame, text, fontName, options)
 		mainLayout = Instance.new("UIListLayout")
 		mainLayout.FillDirection = Enum.FillDirection.Vertical
 		mainLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		mainLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
 		mainLayout.Parent = targetFrame
 	end
+	mainLayout.HorizontalAlignment = horizontalAlignment
+	mainLayout.VerticalAlignment = verticalAlignment
 	mainLayout.Padding = UDim.new(0, 0)
 
 	local targetWrapBoundary = targetFrame.AbsoluteSize.X > 0 and targetFrame.AbsoluteSize.X or CONFIG.MAX_LINE_WIDTH
@@ -712,7 +717,11 @@ function module.UI_inject(targetFrame, text, fontName, options)
 			local lineFrame = Instance.new("Frame")
 			lineFrame.Name = "Line_" .. lineIndex
 			lineFrame.BackgroundTransparency = 1
-			lineFrame.Size = UDim2.new(1, 0, 0, TARGET_DISPLAY_SIZE * textScale)
+			if useScale then
+				lineFrame.Size = UDim2.new(1, 0, 0, TARGET_DISPLAY_SIZE * textScale) -- kept as-is; scale mode governs letters below
+			else
+				lineFrame.Size = UDim2.new(1, 0, 0, TARGET_DISPLAY_SIZE * textScale)
+			end
 			lineFrame.ClipsDescendants = false
 			lineFrame.LayoutOrder = lineIndex
 			lineFrame.Parent = targetFrame
@@ -720,7 +729,7 @@ function module.UI_inject(targetFrame, text, fontName, options)
 			local lineLayout = Instance.new("UIListLayout")
 			lineLayout.FillDirection = Enum.FillDirection.Horizontal
 			lineLayout.SortOrder = Enum.SortOrder.LayoutOrder
-			lineLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+			lineLayout.HorizontalAlignment = horizontalAlignment
 			lineLayout.Parent = lineFrame
 
 			if lineText == "" then
@@ -745,13 +754,23 @@ function module.UI_inject(targetFrame, text, fontName, options)
 					local template = folder:FindFirstChild(char)
 
 					if template then
+						local rawCharW = template.Size.X.Offset * finalScaleModifier
+						local rawCharH = template.Size.Y.Offset * finalScaleModifier
+
 						local wrapper = Instance.new("Frame")
 						wrapper.Name = "LetterWrapper"
 						wrapper.BackgroundTransparency = 1
-						wrapper.Size = UDim2.fromOffset(
-							template.Size.X.Offset * finalScaleModifier,
-							template.Size.Y.Offset * finalScaleModifier
-						)
+						if useScale then
+							-- Scale relative to the parent line frame's absolute size at build time
+							local parentAbsX = lineFrame.AbsoluteSize.X
+							local parentAbsY = lineFrame.AbsoluteSize.Y
+							wrapper.Size = UDim2.fromScale(
+								parentAbsX > 0 and (rawCharW / parentAbsX) or 0,
+								parentAbsY > 0 and (rawCharH / parentAbsY) or 1
+							)
+						else
+							wrapper.Size = UDim2.fromOffset(rawCharW, rawCharH)
+						end
 						wrapper.LayoutOrder = letterCount
 						wrapper.Parent = lineFrame
 
@@ -770,8 +789,25 @@ function module.UI_inject(targetFrame, text, fontName, options)
 							local rawPX = image.Position.X.Offset
 							local rawPY = image.Position.Y.Offset
 
-							image.Size = UDim2.fromOffset(rawW * finalScaleModifier, rawH * finalScaleModifier)
-							image.Position = UDim2.fromOffset(rawPX * finalScaleModifier, rawPY * finalScaleModifier)
+							if useScale then
+								-- Image fills its letterFrame (which is already scale-sized to 1,1);
+								-- position/size the glyph as scale-of-wrapper instead of raw offset.
+								local parentAbsX = wrapper.AbsoluteSize.X
+								local parentAbsY = wrapper.AbsoluteSize.Y
+								image.Size = UDim2.fromScale(
+									parentAbsX > 0 and ((rawW * finalScaleModifier) / parentAbsX) or 1,
+									parentAbsY > 0 and ((rawH * finalScaleModifier) / parentAbsY) or 1
+								)
+								image.Position = UDim2.fromScale(
+									parentAbsX > 0 and ((rawPX * finalScaleModifier) / parentAbsX) or 0,
+									parentAbsY > 0 and ((rawPY * finalScaleModifier) / parentAbsY) or 0
+								)
+							else
+								image.Size = UDim2.fromOffset(rawW * finalScaleModifier, rawH * finalScaleModifier)
+								image.Position =
+									UDim2.fromOffset(rawPX * finalScaleModifier, rawPY * finalScaleModifier)
+							end
+
 							if useOutline then
 								applyOutline(image, letterFrame)
 							end
@@ -814,10 +850,8 @@ function module.UI_inject(targetFrame, text, fontName, options)
 								elseif tag:match("^emotion:") and DialogueBindable and not emotionFired then
 									local emotion = tag:match("^emotion:(.+)$")
 									DialogueBindable:Fire("PlayAnimation", emotion)
-									emotionFired = true -- ← fires once, first character only
+									emotionFired = true
 								end
-
-								
 							end
 						end
 
@@ -837,6 +871,62 @@ function module.UI_inject(targetFrame, text, fontName, options)
 	end)
 
 	return finishInstantly
+end
+
+-- =============================================
+-- UI_SET (tag-driven one-time bake)
+-- =============================================
+-- Tag goes on the GUI/container itself (e.g. a ScreenGui or Frame), not on
+-- individual TextLabels/TextBoxes. Every TextLabel/TextBox descendant of a
+-- tagged container gets its .Text baked into the letter-based UI_inject
+-- structure, in place, once. This is a build-time operation, not a runtime
+-- system — call it once (server start / plugin run), not on a loop.
+function module.UI_Set(tag)
+	tag = tag or UI_SET_TAG
+
+	for _, container in ipairs(CollectionService:GetTagged(tag)) do
+		local ok, err = pcall(function()
+			for _, sourceInstance in ipairs(container:GetDescendants()) do
+				if sourceInstance:IsA("TextLabel") or sourceInstance:IsA("TextBox") then
+					local text = sourceInstance.Text
+					if not text or text == "" then
+						continue
+					end
+
+					local parent = sourceInstance.Parent
+					local fontName = sourceInstance:GetAttribute("FontName") or DEFAULT_FONT
+
+					local xAlign = Enum.HorizontalAlignment[sourceInstance.TextXAlignment.Name]
+					local yAlign = Enum.VerticalAlignment[sourceInstance.TextYAlignment.Name]
+
+					local targetFrame = Instance.new("Frame")
+					targetFrame.Name = sourceInstance.Name .. "_Letters"
+					targetFrame.Size = sourceInstance.Size
+					targetFrame.Position = sourceInstance.Position
+					targetFrame.AnchorPoint = sourceInstance.AnchorPoint
+					targetFrame.BackgroundTransparency = 1
+					targetFrame.LayoutOrder = sourceInstance.LayoutOrder
+					targetFrame.Parent = parent
+
+					module.UI_inject(targetFrame, text, fontName, {
+						letterDelay = 0,
+						fadeInTime = 0,
+						clearFirst = true,
+						horizontalAlignment = xAlign,
+						verticalAlignment = yAlign,
+					})
+
+					sourceInstance:Destroy()
+				end
+			end
+
+			CollectionService:RemoveTag(container, tag)
+		end)
+
+		if not ok then
+			warn(("UI_Set failed on %s: %s"):format(container:GetFullName(), tostring(err)))
+		end
+	end
 end
 
 return module

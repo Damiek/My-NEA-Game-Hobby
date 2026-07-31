@@ -19,6 +19,7 @@
 	.drops {} -- Loot table entries chosen on death (currently unused, see PickDrops)
 	.MovementObj MovementTypes.MovementObj -- Handles this NPC's movement mechanics (dodge, climb, wall run)
 	.Intent -- This is the buffer that holds what combat action is the actor waiting to do
+	.AIObject -- reference to the brain script's Object table (holds .Threats, .Target, etc.)
 	@within NPC
 ]=]
 
@@ -44,7 +45,6 @@
 local npc = {}
 local SS = game:GetService("ServerStorage")
 local RS = game:GetService("ReplicatedStorage")
-local ServerStorage = game:GetService("ServerStorage")
 
 local SSModules = SS.Modules
 local Dictionaries = SSModules.Dictionaries
@@ -57,7 +57,7 @@ local ModeModule = require(SSModules.Combat.Mode_Module)
 local CombatHelper = require(SSModules.Combat.CombatHelper)
 local Combat_Data = require(SSModules.Combat.Data.CombatData)
 local EquipModule = require(SSModules.Combat.EquipModule)
-local HelpfullModule = require(ServerStorage.Modules.Other.Helpful)
+local HelpfullModule = require(SSModules.Other.Helpful)
 local Movement = require(RS.Modules.Movement.Objects.Movement)
 local MovementTypes = require(RS.Modules.Movement.Objects.Movement.Types)
 
@@ -83,6 +83,7 @@ export type NPC = typeof(setmetatable(
 		drops: {},
 		MovementObj: MovementTypes.MovementObj,
 		Intent: string,
+		AIObject: {}?,
 	},
 	npc
 ))
@@ -109,6 +110,10 @@ local function PickDrops(npcName)
 
 	return ChosenDrops
 end
+
+
+
+
 
 --[=[
 	Constructs a new NPC. Pulls stats from NPC_Dictionary, generates or reuses a Character model,
@@ -137,6 +142,7 @@ function npc.new(NpcName: string, char: Model?): NPC
 		skills = {},
 		drops = {},
 		Intent = "None",
+		AIObject = nil, -- NEW
 	}, npc) :: NPC
 
 	local NPCinfo = NPC_Dictionary.getStats(NpcName)
@@ -173,7 +179,9 @@ function npc.new(NpcName: string, char: Model?): NPC
 			self.Character:SetAttribute(i, v)
 		end
 
-		self.Character:SetAttribute("CurrentWeapon", "ShootingStar") -- defulat is meant to fists for tesing purposes i am using the kunai
+		self.Character:SetAttribute("CurrentWeapon", "ShootingStar") -- defulat is meant to fists for tesing purposes i am using a hard set weapon
+		self.Character:SetAttribute("Blocking", 0)
+	    self.Character:SetAttribute("Karma", 0)
 		local Torso = self.Character:FindFirstChild("Torso")
 		HelpfullModule.ChangeWeapon(self, self.Character, Torso)
 		self:EquipWeapon()
@@ -328,7 +336,6 @@ end
 --[=[
 	Performs a dodge via DodgeModule, using the NPC's MovementObj. No-ops if transforming.
 
-	@param Direction Vector3? -- Currently unused; DodgeModule.Dodge does not read this argument yet
 	@within NPC
 ]=]
 function npc:Dodge(Direction)

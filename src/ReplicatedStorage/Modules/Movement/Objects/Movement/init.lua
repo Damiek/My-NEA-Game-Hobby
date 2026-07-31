@@ -152,6 +152,10 @@ function Movement.new(identifer): Type.MovementObj
 				Slide = {
 					Stop = function() end,
 				},
+
+				Resting = {
+					Stop = function() end,
+				}
 			},
 
 			WalkCycleAnims = {
@@ -431,7 +435,7 @@ function Movement:Destroy()
 	self._attributeSignals = {}
 	self._attributePaths = {}
 
-	for _, key in ipairs({"Wallrun", "Dodge", "Climb", "Sprint", "EXSprint", "WallHold", "Crouch", "Slide"}) do
+	for _, key in ipairs({"Wallrun", "Dodge", "Climb", "Sprint", "EXSprint", "WallHold", "Crouch", "Slide", "Resting"}) do
 		local entry = self.InfoTable[key]
 		if type(entry) == "table" and type(entry.Stop) == "function" then
 			pcall(function()

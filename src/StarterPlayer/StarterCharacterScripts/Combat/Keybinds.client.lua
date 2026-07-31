@@ -8,6 +8,7 @@ local uis = game:GetService("UserInputService")
 local Movement = require(RS.Modules.Movement.Objects.Movement)
 local Dodge = require(RS.Modules.Movement.Mechnanics.Dodge)
 
+local debounce = nil
 
 
 local Events = RS.Events
@@ -21,7 +22,6 @@ local Moves_Event = Events.SkillEvent
 local updateEvent = Events.UpdateMovement
 local InventoryEvent = Events.InventoryEvent
 
-local debounce = false 
 
 local plr = game:GetService("Players").LocalPlayer
 local char = plr.Character
@@ -189,7 +189,7 @@ end)
 
 
 uis.InputBegan:Connect(function(key, istyping)
-	if isActuallyTyping()  then print("Yop") return end
+	if isActuallyTyping()  then  return end
 
 	print("Yo")
 
@@ -443,9 +443,13 @@ uis.InputEnded:Connect(function(input,isTyping)
 	if isTyping then return end 
 	
 	if input.keyCode == Enum.KeyCode.E then
+		if char:GetAttribute("CanInteract") then
+			return  --- The interacion stuff is going to be handled by the prox script as the it has the parrams needed for the remote event
+		end
+
 		if char:GetAttribute("Mode2") then return end
 
-		if char:GetAttribute("Mode1") or char:GetAttribute("Mode2") then 
+		if char:GetAttribute("Mode1") then 
 			Transform:FireServer("Revert")
 		else
            WeaponsEvent:FireServer("Equip/UnEquip")
@@ -454,6 +458,7 @@ uis.InputEnded:Connect(function(input,isTyping)
 		
 		
 	end
+
 end)
 
 

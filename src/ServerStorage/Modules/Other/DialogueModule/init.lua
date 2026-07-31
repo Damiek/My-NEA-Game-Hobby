@@ -52,7 +52,7 @@ DialogueRemote:FireClient(plr,tree,DialogueParams)
 right now a possible solotion is a bool Value called "Important"
 
 if that set to true then we can index the npcinfo with their name as usual  and if that set to false we can prob we will need to find what type of NPC they are :
-("Civllain","[Whateverfacton]Guard","RandomEncouter")
+("Civllain","[Whateverfacton]Guard","[NPCNAME]_RandomEncouter")
 
 Also now that i am actually thinking of this i need to research of the condition node works because i certain reponses and Dialogues are going to locked under certain restrictions 
 right now i am thinking of using script nodes to handle all that by connecting multiple trees (Using a another function i wll write called Followup)
@@ -110,5 +110,8 @@ function module.StartDialogue(NPC: Model, plr: Player)
 
 	DialogueRemote:FireClient(plr,info.Tree,Parrams)	
 end
+
+
+
 
 return module

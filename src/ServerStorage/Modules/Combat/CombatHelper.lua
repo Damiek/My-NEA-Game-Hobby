@@ -182,9 +182,6 @@ function module.Attack(char, npc)
 	Connections[Identifier].HitStart = hitStartConn
 	Connections[Identifier].HitEnd = hitEndConn
 
-	-- Stopped fires whenever the animation ends for ANY reason (natural finish, stopAnims,
-	-- or a transformation interrupting mid-swing). cleanupSwing safely no-ops the parts
-	-- that HitEnd already handled.
 	playSwingAnimation.Stopped:Connect(function()
 		cleanupSwing()
 	end)
@@ -228,7 +225,7 @@ function module.CancelAttack(char, npc)
 	end
 end
 
-function module.RevengeCounter(char: Model, npc)
+function module.RevengeCounter(char: Model, npc)  -- TODO: Modify this to use the element obj rather than a general one
 	local tag = char:FindFirstChild("RevengeTarget")
 	if not tag then
 		return
@@ -236,6 +233,7 @@ function module.RevengeCounter(char: Model, npc)
 
 	char:SetAttribute("CanRevenge", false)
 	char:SetAttribute("Iframes", true)
+	char:SetAttribute("Attacking",true)
 	IntentService.SetIntent(char, npc, "RevengeCounter")
 
 	local echar = tag.Value
@@ -369,6 +367,10 @@ function module.RevengeCounter(char: Model, npc)
 		task.delay(0.2, function()
 			TriggerRevengeHitbox()
 			char:SetAttribute("Iframes", false)
+		end)
+
+		task.delay(0.09, function()
+			char:SetAttribute("Attacking",false)
 		end)
 
 		

@@ -6,6 +6,8 @@
   on top of this each element would need to have a Mode1 and Mode2 Init function that handles any special intercation with transfomrations
 	such as loading new attributes or creating new welds.
 
+	Also each skill would need to have its own "Hitservice" function that can be called by hitservice 
+
 
 ]] 
 

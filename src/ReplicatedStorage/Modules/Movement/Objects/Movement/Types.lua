@@ -62,6 +62,12 @@ export type MovementObjData = {
 		Slide: {
 			Stop: () -> (),
 		},
+
+        Resting: {
+			Stop:() -> (),
+		},
+        
+
 	},
 
 	WalkCycleAnims: {

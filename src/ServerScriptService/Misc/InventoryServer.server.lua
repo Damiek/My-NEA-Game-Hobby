@@ -7,6 +7,9 @@ local Helper = require(SS.Modules.Other.Helpful)
 local Events = RS.Events
 local InventoryEvent = Events.InventoryEvent
 
+  --[[
+TODO : add validation here 
+]]
 
 
 

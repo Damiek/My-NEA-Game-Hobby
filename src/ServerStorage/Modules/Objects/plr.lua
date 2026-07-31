@@ -2,6 +2,7 @@ local plr = {}
 plr.__index = plr
 local SS = game:GetService("ServerStorage")
 local RS = game:GetService("ReplicatedStorage")
+local PS = game:GetService("PhysicsService")
 local ServerScriptService = game:GetService("ServerScriptService")
 local Workspace = game:GetService("Workspace")
 local SSModules = SS.Modules
@@ -75,6 +76,31 @@ export type PLR = typeof(setmetatable( -- Custom type to make looking for stuff 
 	},
 	plr
 ))
+
+
+
+local CHAR_GROUP = "Characters"
+local VFX_GROUP = "VFX_Models"
+
+
+pcall(function() PS:RegisterCollisionGroup(CHAR_GROUP) end )
+
+PS:CollisionGroupSetCollidable(CHAR_GROUP, VFX_GROUP, false)
+
+local function GroupSeter(char:Model)
+	for i, child in ipairs(char:GetDescendants()) do
+		if child:IsA("BasePart") then
+			child.CollisionGroup = CHAR_GROUP
+		end
+	end
+
+	char.DescendantAdded:Connect(function(new)
+		if new:IsA("BasePart") and new.CanCollide then
+			new.CollisionGroup = CHAR_GROUP
+		end
+
+	end)
+end
 
 local function LoadCharacterAppearance(plr: PLR)
 	local hum = plr.Character:FindFirstChildOfClass("Humanoid")
@@ -254,6 +280,8 @@ local function SetupStates(plr: PLR)
 	char:SetAttribute("InCombat", false)
 	char:SetAttribute("Dodges", 0)
 	char:SetAttribute("MF", 0)
+	char:SetAttribute("Blocking", 0)
+	char:SetAttribute("Karma", 0)
 end
 
 local playertoPLR = {}
@@ -321,6 +349,7 @@ function plr.new(Player: Player, Slot: string): PLR?
 	Highlight.Name = "InitializeHighlight"
 	self.Highlight = Highlight
 	self.Character:SetAttribute("Iframes", true)
+	self.Character:SetAttribute("CurrentSlot",Slot)
 
 	self.CurrentSlot = Slot
 	self.HairColor = Color3.new(
@@ -333,6 +362,7 @@ function plr.new(Player: Player, Slot: string): PLR?
 	LoadCharacterAppearance(self)
 	SetupStats(self)
 	SetupStates(self)
+	GroupSeter(self.Character)
 
 	for i, v in pairs(self.Character:GetDescendants()) do
 		if v.Parent:IsA("Accessory") and v:IsA("Part") then

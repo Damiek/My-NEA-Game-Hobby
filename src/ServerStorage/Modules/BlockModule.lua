@@ -304,8 +304,11 @@ function module.Parrying(char, eChar, hitPos, npc)
 	local identifier = players:GetPlayerFromCharacter(eChar) or npc
 	local Result = "HitLanded"
 	SucessfulParry[identifier] = true
-	ParryAnims[identifier]:Stop()
+	if ParryAnims[identifier] then
+		ParryAnims[identifier]:Stop()
 	-- Kill the parry anims to prevent the rest of the parry process from being ran so cooldowns are not triggered
+	end
+	
 
 	local currentWeapon = char:GetAttribute("CurrentWeapon")
 	local BlockDmg = WeaponStatsModule.getStats(currentWeapon).BlockDmg
@@ -313,6 +316,7 @@ function module.Parrying(char, eChar, hitPos, npc)
 	char:SetAttribute("Blocking", char:GetAttribute("Blocking") + BlockDmg)
 	eChar:SetAttribute("Blocking", eChar:GetAttribute("Blocking") - BlockDmg)
 	eChar:SetAttribute("InCombat", true)
+	eChar:SetAttribute("Parrying",false)
 
 	if eChar:GetAttribute("Blocking") < 0 then
 		eChar:SetAttribute("Blocking", 0)

@@ -18,7 +18,16 @@ local data = {
         Tree =  TreeFolder.Tutorial,
         Font = "MinecraftFont",
         Title = "<shake>The Start of the End<shake>"
+    },
+
+     ["Shadow_master0989"] = {
+        Sound = SoundService.SFX.NPCs.bleep018,
+        Tree =  TreeFolder.Tutorial,
+        Font = "MinecraftFont",
+        Title = "<shake>The Niall Gazer<shake>"
     }
+
+   
 
     
 
