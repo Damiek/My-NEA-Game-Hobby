@@ -102,6 +102,9 @@ function module.Mode1(char, npc)
 	if EquipDebounce[Identifier] then
 		return
 	end
+	if HelpfulModule.CheckForAttributes(char, false, false, false, true, nil, false, false, false) then
+		return
+	end
 
 	EquipDebounce[Identifier] = true
 	char:SetAttribute("iframes", true)
@@ -114,7 +117,6 @@ function module.Mode1(char, npc)
 	end
 	local elementStats = ElementInfo.getStats(element)
 	local newWeapon = elementStats.Mode1
-
 	TransformAnims[Identifier] = hum.Animator:LoadAnimation(WeaponsAnimations.Transformations[element].Mode1)
 	rootPart.Anchored = true
 	TransformAnims[Identifier]:Play()
@@ -197,6 +199,9 @@ function module.Mode2(char, npc)
 		return
 	end
 	if EquipDebounce[Identifier] then
+		return
+	end
+	if HelpfulModule.CheckForAttributes(char, false, false, false, true, nil, false, false, false) then
 		return
 	end
 
