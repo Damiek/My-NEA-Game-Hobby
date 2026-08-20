@@ -16,7 +16,7 @@ export type MovementObjData = {
 		IsInAir: boolean, -- In the air
 		IsOnWall: boolean, -- Is holding onto a wall
 		IsCrouching: boolean, -- Is crouching
-		IsSliding: boolean, -- Is sliding
+		ISSliding: boolean, -- Is sliding
 		IsResting: boolean, -- Is resting
 	},
 
