@@ -47,7 +47,18 @@ local function updateMovementAttribute()
 	local currentKey = "None"
 	
 	if #heldKeys > 0 then
-		currentKey = heldKeys[1]
+		local key = heldKeys[1]
+		-- W is the lowest-priority dodge key: it only resolves forward when it is
+		-- the ONLY key held. Any held strafe/back key beats it regardless of order.
+		if key == "W" and #heldKeys > 1 then
+			for _, k in ipairs(heldKeys) do
+				if k ~= "W" then
+					key = k
+					break
+				end
+			end
+		end
+		currentKey = key
 	end
 
 	if currentKey ~= lastSentKey then
@@ -119,7 +130,7 @@ uis.InputBegan:Connect(function(input, isTyping)
 			if v == keyName then return end
 		end
 		
-		table.insert(heldKeys, keyName)
+		table.insert(heldKeys, 1, keyName)
 		updateMovementAttribute()
 	end
 end)

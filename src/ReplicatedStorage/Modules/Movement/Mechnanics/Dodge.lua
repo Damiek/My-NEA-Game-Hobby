@@ -61,10 +61,9 @@ local function Get3DMovement(MovementObj: ClientTypes.MovementObj)
     local MoveInput = hum.MoveDirection
     local HeldKey = char:GetAttribute("CurrentMoveKey") or "None"
 
-    if MoveInput.Magnitude > 0 then
-        return MoveInput.Unit
-    end
-
+    -- Priority-resolved WASD intent beats the live MoveDirection blend: with
+    -- W+A held the resolved key is "A" (see Keybinds.updateMovementAttribute),
+    -- so the dodge goes clean left instead of a forward-left diagonal.
     if HeldKey ~= "None" then
         local cam = GetCamera()
         if cam then
@@ -81,6 +80,10 @@ local function Get3DMovement(MovementObj: ClientTypes.MovementObj)
             if HeldKey == "A" then return -right end
             if HeldKey == "D" then return right end
         end
+    end
+
+    if MoveInput.Magnitude > 0 then
+        return MoveInput.Unit
     end
 
     local cam = GetCamera()
