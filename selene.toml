@@ -1,0 +1,24 @@
+std = "roblox"
+
+exclude = [
+    "src/ReplicatedStorage/Fusion/*",
+    "src/ReplicatedStorage/SmartBone/*",
+    "src/ReplicatedStorage/Modules/CameraShaker/*",
+    "src/ReplicatedStorage/Modules/Packages/_Index/*",
+    "src/ReplicatedStorage/BehaviorTreeCreator/*",
+    "src/ReplicatedStorage/Modules/Cast.lua",
+]
+
+[lints]
+# Your signature one-liner guards — `if x then y end`
+multiple_statements = "allow"
+# Opinionated "use the helper" nag that fires 36x on your own code
+roblox_manual_fromscale_or_fromoffset = "allow"
+
+# Promote the real-bug catchers to errors
+unscoped_variables = "deny"
+
+# Extra safety nets worth turning on
+ifs_same_cond = "warn"
+mismatched_arg_count = "deny"
+duplicate_keys = "deny"

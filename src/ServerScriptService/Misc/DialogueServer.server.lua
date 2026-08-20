@@ -12,6 +12,7 @@ local DialogueInfo = require(SSModules.Other.DialogueModule.Dialogueinfo)
 
 DialogueEvent.OnServerEvent:Connect(function(plr,npc)
     if not plr or not npc then return end 
+    print("yow")
     Dialogue.StartDialogue(npc, plr)
 end)
 

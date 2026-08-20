@@ -40,7 +40,6 @@ ViewportModel = NPC
 Speaker = NPC.Name
 Font = NPCDialogueinfo.font
 Sound = NPCDialogueinfo.Sound
-CanMove = NPCDiaogueinfo.CanMove
 Title = "The Extintion Event of Reality"
 }
 
@@ -99,7 +98,11 @@ function module.StartDialogue(NPC: Model, plr: Player)
 	Parrams.Font = info.Font
     Parrams.Speaker = speakerDisplay
     Parrams.Sound = info.Sound
-    Parrams.ViewportModel = NPC
+
+	if info.IsAPerson then
+		Parrams.ViewportModel = NPC
+	end
+    
 
 	print(plr,info.Tree,Parrams)
 

@@ -26,11 +26,24 @@ local CONFIG = {
 
 	SHAKE_MAGNITUDE = 2,
 	SHAKE_SPEED = 0.02,
+
+	-- UI_inject: when a line is wider than the frame, shrink it to fit. If the
+	-- required shrink drops below this ratio, word-wrap instead.
+	MIN_FIT_SCALE = 0.75,
+
+	-- Corrupt tag: chance per tick that a corrupted letter flashes its true
+	-- glyph instead of a random one, and the min/max tick interval (in
+	-- hundredths of a second) between glyph swaps.
+	CORRUPT_REVEAL_CHANCE = 0.2,
+	CORRUPT_SWAP_MIN = 4,
+	CORRUPT_SWAP_MAX = 10,
 }
 
 local TARGET_DISPLAY_SIZE = 20
 local DEFAULT_FONT = "MinecraftFont"
 local UI_SET_TAG = "AutoLetterUI"
+local activeInjections = {} -- keyed by targetFrame, module-level
+local CORRUPT_POOL = {} -- keyed by fontName -> list of corruptible character names (fontmap glyphs, excludes "Æ")
 
 -- =============================================
 -- FONT INITIALIZATION
@@ -130,9 +143,20 @@ local function buildStringFolder(fontName, fontData, fontMap, displaySize)
 	return folder
 end
 
+local function buildCorruptPool(fontName, folder)
+	local pool = {}
+	for _, child in ipairs(folder:GetChildren()) do
+		if child:IsA("Frame") and child.Name ~= "Æ" then
+			table.insert(pool, child.Name)
+		end
+	end
+	CORRUPT_POOL[fontName] = pool
+end
+
 local stringFolders = {}
 for fontName, fontInfo in pairs(FontsModule.FontTable) do
 	stringFolders[fontName] = buildStringFolder(fontName, fontInfo.FontData, fontInfo.FontMap, fontInfo.DisplaySize)
+	buildCorruptPool(fontName, stringFolders[fontName])
 end
 
 -- =============================================
@@ -162,6 +186,7 @@ local function parseTags(str)
 					if
 						(tagStack[idx]:match("^colour:") and closing == "colour")
 						or (tagStack[idx]:match("^emotion:") and closing:match("^emotion:"))
+						or (tagStack[idx]:match("^corrupt:") and closing == "corrupt")
 						or tagStack[idx] == closing
 					then
 						table.remove(tagStack, idx)
@@ -207,27 +232,119 @@ local function applyShakeEffect(letterFrame, imageLabel)
 	end
 end
 
--- Controlled distortion engine for the corrupt tag
-local function applyCorruptEffect(wrapperFrame, letterFrame, imageLabel, baseWidth, baseHeight)
+-- Selects which letters within each word of `text` get corrupted, based on
+-- `intensity` (how many letters per word, clamped to that word's length).
+-- Returns a set keyed by grapheme start-byte-index (as returned by
+-- utf8.graphemes) -> true for every letter chosen.
+local function selectCorruptIndices(text, intensity)
+	local selected = {}
+	local wordIndices = {}
+
+	local function flushWord()
+		if #wordIndices == 0 then
+			return
+		end
+		local count = math.min(intensity, #wordIndices)
+		local pool = table.clone(wordIndices)
+		for _ = 1, count do
+			local pick = math.random(1, #pool)
+			selected[pool[pick]] = true
+			table.remove(pool, pick)
+		end
+		table.clear(wordIndices)
+	end
+
+	for i, j in utf8.graphemes(text) do
+		local char = text:sub(i, j)
+		if char:match("%s") then
+			flushWord()
+		else
+			table.insert(wordIndices, i)
+		end
+	end
+	flushWord()
+
+	return selected
+end
+
+-- Corruption engine for the corrupt tag: cycles a letter's displayed glyph
+-- between random characters from the fontmap and its own correct glyph, so
+-- the word reads as garbled while still periodically flashing its true form.
+local function applyCorruptEffect(imageLabel, fontName, parentLetter)
+	local pool = CORRUPT_POOL[fontName]
+	local folder = stringFolders[fontName]
+	if not pool or #pool == 0 or not folder then
+		return function() end
+	end
+
+	local correctImage = imageLabel.Image
+	local correctRectOffset = imageLabel.ImageRectOffset
+	local correctRectSize = imageLabel.ImageRectSize
+
+	-- Snapshot correct glyph data for each outline clone too
+	local outlineCorrect = {}
+	if parentLetter then
+		for _, child in ipairs(parentLetter:GetChildren()) do
+			if child:IsA("ImageLabel") and child.Name:match("^Outline") then
+				outlineCorrect[child] = {
+					Image = child.Image,
+					ImageRectOffset = child.ImageRectOffset,
+					ImageRectSize = child.ImageRectSize,
+				}
+			end
+		end
+	end
+
 	local active = true
 	task.spawn(function()
-		while active and letterFrame.Parent do
-			local offsetY = math.random(-12, 12)
-			local offsetX = math.random(-3, 3)
-			letterFrame.Position = UDim2.fromOffset(offsetX, offsetY)
-
-			local scaleMultiplier = math.random(7, 16) / 10
-			wrapperFrame.Size = UDim2.fromOffset(baseWidth * scaleMultiplier, baseHeight * scaleMultiplier)
-
-			imageLabel.ImageTransparency = math.random(0, 4) / 10
-
-			task.wait(math.random(3, 8) / 100)
+		while active and imageLabel.Parent do
+			if math.random() < CONFIG.CORRUPT_REVEAL_CHANCE then
+				-- Reveal correct glyph on main and all outlines
+				imageLabel.Image = correctImage
+				imageLabel.ImageRectOffset = correctRectOffset
+				imageLabel.ImageRectSize = correctRectSize
+				for outline, data in pairs(outlineCorrect) do
+					if outline.Parent then
+						outline.Image = data.Image
+						outline.ImageRectOffset = data.ImageRectOffset
+						outline.ImageRectSize = data.ImageRectSize
+					end
+				end
+			else
+				-- Pick a random glyph and apply it to main and all outlines
+				local randomChar = pool[math.random(1, #pool)]
+				local template = folder:FindFirstChild(randomChar)
+				local randomImage = template and template:FindFirstChildWhichIsA("ImageLabel")
+				if randomImage then
+					imageLabel.Image = randomImage.Image
+					imageLabel.ImageRectOffset = randomImage.ImageRectOffset
+					imageLabel.ImageRectSize = randomImage.ImageRectSize
+					for outline, _ in pairs(outlineCorrect) do
+						if outline.Parent then
+							outline.Image = randomImage.Image
+							outline.ImageRectOffset = randomImage.ImageRectOffset
+							outline.ImageRectSize = randomImage.ImageRectSize
+						end
+					end
+				end
+			end
+			task.wait(math.random(CONFIG.CORRUPT_SWAP_MIN, CONFIG.CORRUPT_SWAP_MAX) / 100)
 		end
-		if letterFrame.Parent then
-			letterFrame.Position = UDim2.fromOffset(0, 0)
-			imageLabel.ImageTransparency = 0
+		-- Restore correct glyph on cleanup
+		if imageLabel.Parent then
+			imageLabel.Image = correctImage
+			imageLabel.ImageRectOffset = correctRectOffset
+			imageLabel.ImageRectSize = correctRectSize
+		end
+		for outline, data in pairs(outlineCorrect) do
+			if outline.Parent then
+				outline.Image = data.Image
+				outline.ImageRectOffset = data.ImageRectOffset
+				outline.ImageRectSize = data.ImageRectSize
+			end
 		end
 	end)
+
 	return function()
 		active = false
 	end
@@ -325,6 +442,26 @@ local function wrapText(str, maxWidth, folder, scaleMod)
 		end
 	end
 
+	-- Tags sit between plain-text chunks, so a single source space that borders
+	-- a tag gets emitted twice (trailing of one chunk + leading of the next).
+	-- Collapse consecutive space tokens across tag boundaries.
+	local collapsed = {}
+	local lastNonTagWasSpace = false
+	for _, token in ipairs(tokens) do
+		if token.isTag then
+			table.insert(collapsed, token)
+		elseif token.isSpace then
+			if not lastNonTagWasSpace then
+				table.insert(collapsed, token)
+				lastNonTagWasSpace = true
+			end
+		else
+			table.insert(collapsed, token)
+			lastNonTagWasSpace = false
+		end
+	end
+	tokens = collapsed
+
 	local currentLine = ""
 	local currentWidth = 0
 
@@ -346,6 +483,8 @@ local function wrapText(str, maxWidth, folder, scaleMod)
 				table.insert(close, "/colour")
 			elseif t:match("^emotion:") then
 				table.insert(close, "/emotion")
+			elseif t:match("^corrupt:") then
+				table.insert(close, "/corrupt")
 			else
 				table.insert(close, "/" .. t)
 			end
@@ -363,6 +502,7 @@ local function wrapText(str, maxWidth, folder, scaleMod)
 					if
 						(activeTags[idx]:match("^colour:") and realName == "colour")
 						or (activeTags[idx]:match("^emotion:") and realName == "emotion")
+						or (activeTags[idx]:match("^corrupt:") and realName == "corrupt")
 						or activeTags[idx] == realName
 					then
 						table.remove(activeTags, idx)
@@ -402,9 +542,9 @@ local currentHeaderFrame
 
 local function subtitleSingle(str, plr, isLast)
 	local folder = stringFolders[DEFAULT_FONT]
-	local rawLineHeight = folder:GetAttribute("LineHeight") or 18
-	local targetDisplay = folder:GetAttribute("DisplaySize") or TARGET_DISPLAY_SIZE
-	local normScale = targetDisplay / rawLineHeight
+	--local rawLineHeight = folder:GetAttribute("LineHeight") or 18
+	--local targetDisplay = folder:GetAttribute("DisplaySize") or TARGET_DISPLAY_SIZE
+	--local normScale = targetDisplay / rawLineHeight
 
 	local headerText
 	str = str:gsub("<h>(.-)<h>", function(h)
@@ -507,6 +647,15 @@ local function subtitleSingle(str, plr, isLast)
 			continue
 		end
 
+		local corruptSelected
+		for _, tag in ipairs(segment.tags) do
+			local intensity = tag:match("^corrupt:(%d+)$")
+			if intensity then
+				corruptSelected = selectCorruptIndices(segment.text, tonumber(intensity))
+				break
+			end
+		end
+
 		for i, unit in utf8.graphemes(segment.text) do
 			local char = segment.text:sub(i, unit)
 			local template = folder:FindFirstChild(char)
@@ -531,15 +680,11 @@ local function subtitleSingle(str, plr, isLast)
 						if tag == "shake" then
 							local stop = applyShakeEffect(newLetter, image)
 							table.insert(activeStoppers, stop)
-						elseif tag == "corrupt" then
-							local stop = applyCorruptEffect(
-								newLetter,
-								newLetter,
-								image,
-								template.Size.X.Offset * normScale,
-								template.Size.Y.Offset * normScale
-							)
-							table.insert(activeStoppers, stop)
+						elseif tag:match("^corrupt:%d+$") then
+							if corruptSelected and corruptSelected[i] then
+								local stop = applyCorruptEffect(image, DEFAULT_FONT, newLetter)
+								table.insert(activeStoppers, stop)
+							end
 						elseif tag:match("^emotion:") and DialogueBindable then
 							local emotion = tag:match("^emotion:(.+)$")
 							DialogueBindable:Fire("PlayAnimation", emotion)
@@ -640,9 +785,14 @@ end
 -- =============================================
 -- UI_INJECT
 -- =============================================
+
 function module.UI_inject(targetFrame, text, fontName, options)
 	fontName = fontName or DEFAULT_FONT
 	options = options or {}
+
+	if activeInjections[targetFrame] then
+		activeInjections[targetFrame]()
+	end
 
 	local folder = stringFolders[fontName]
 	if not folder then
@@ -660,15 +810,13 @@ function module.UI_inject(targetFrame, text, fontName, options)
 	local clearFirst = options.clearFirst ~= false
 	local onComplete = options.onComplete
 	local textScale = options.textScale ~= nil and options.textScale or 1
-	local useScale = options.useScale == true -- nil/false -> offset, true -> scale
+	local useScale = options.useScale == true
 
-	-- Alignment passthrough: defaults to Left/Top to match original hardcoded behavior
 	local horizontalAlignment = options.horizontalAlignment or Enum.HorizontalAlignment.Left
 	local verticalAlignment = options.verticalAlignment or Enum.VerticalAlignment.Top
 
 	local finalScaleModifier = normalizationMultiplier * textScale
 
-	-- Fixed Content Injection Loop: Clear only injected line rows, never UI infrastructure objects
 	if clearFirst then
 		for _, child in ipairs(targetFrame:GetChildren()) do
 			if child:IsA("Frame") and child.Name:match("^Line_") then
@@ -688,40 +836,75 @@ function module.UI_inject(targetFrame, text, fontName, options)
 	mainLayout.VerticalAlignment = verticalAlignment
 	mainLayout.Padding = UDim.new(0, 0)
 
-	local targetWrapBoundary = targetFrame.AbsoluteSize.X > 0 and targetFrame.AbsoluteSize.X or CONFIG.MAX_LINE_WIDTH
+	-- Width can still safely come from the container (assumed not auto-sizing on X).
+	-- Height CANNOT come from the container anymore: Name/Title now use AutomaticSize.Y,
+	-- meaning AbsoluteSize.Y sits at 0 until content exists inside them — deriving refHeight
+	-- from it would be circular (glyphs wait on a size that only grows once glyphs exist).
+	-- Derive refHeight from font metrics instead, which are known up front.
+	local refWidth = targetFrame.AbsoluteSize.X > 0 and targetFrame.AbsoluteSize.X or CONFIG.MAX_LINE_WIDTH
+	local refHeight = rawLineHeight * finalScaleModifier
+
+	local targetWrapBoundary = refWidth
 
 	local segmentsOrLines = {}
 	for rawLine in string.gmatch(text .. "\n", "([^\n]*)\n") do
-		local wrapped = wrapText(rawLine, targetWrapBoundary, folder, finalScaleModifier)
-		if #wrapped == 0 then
-			table.insert(segmentsOrLines, "")
-		else
-			for _, wLine in ipairs(wrapped) do
-				table.insert(segmentsOrLines, wLine)
+		local baseWidth = calculateTextWidth(rawLine, folder, 1) * finalScaleModifier
+
+		if baseWidth > refWidth then
+			local fitScale = refWidth / baseWidth
+			if fitScale >= CONFIG.MIN_FIT_SCALE then
+				table.insert(segmentsOrLines, {
+					text = rawLine,
+					scaleModifier = finalScaleModifier * fitScale,
+				})
+			else
+				local wrapped = wrapText(rawLine, targetWrapBoundary, folder, finalScaleModifier)
+				if #wrapped == 0 then
+					table.insert(segmentsOrLines, { text = "", scaleModifier = finalScaleModifier })
+				else
+					for _, wLine in ipairs(wrapped) do
+						table.insert(segmentsOrLines, { text = wLine, scaleModifier = finalScaleModifier })
+					end
+				end
 			end
+		else
+			table.insert(segmentsOrLines, { text = rawLine, scaleModifier = finalScaleModifier })
 		end
 	end
 
 	local instant = false
+	local cancelled = false
 	local activeStoppers = {}
 
 	local function finishInstantly()
 		instant = true
 	end
 
+	local function cancel()
+		cancelled = true
+		for _, stop in ipairs(activeStoppers) do
+			stop()
+		end
+	end
+	activeInjections[targetFrame] = cancel
+
 	task.spawn(function()
 		local letterCount = 0
 		local lineIndex = 1
 
-		for _, lineText in ipairs(segmentsOrLines) do
+		for _, lineData in ipairs(segmentsOrLines) do
+			if cancelled then
+				return
+			end
+
+			local lineText = lineData.text
+			local lineScaleModifier = lineData.scaleModifier
+
 			local lineFrame = Instance.new("Frame")
 			lineFrame.Name = "Line_" .. lineIndex
 			lineFrame.BackgroundTransparency = 1
-			if useScale then
-				lineFrame.Size = UDim2.new(1, 0, 0, TARGET_DISPLAY_SIZE * textScale) -- kept as-is; scale mode governs letters below
-			else
-				lineFrame.Size = UDim2.new(1, 0, 0, TARGET_DISPLAY_SIZE * textScale)
-			end
+			lineFrame.AutomaticSize = Enum.AutomaticSize.Y
+			lineFrame.Size = UDim2.new(1, 0, 0, 0)
 			lineFrame.ClipsDescendants = false
 			lineFrame.LayoutOrder = lineIndex
 			lineFrame.Parent = targetFrame
@@ -740,6 +923,10 @@ function module.UI_inject(targetFrame, text, fontName, options)
 			local parsed = parseTags(lineText)
 
 			for _, segment in ipairs(parsed) do
+				if cancelled then
+					return
+				end
+
 				if segment.isPause and not instant then
 					for _, tag in ipairs(segment.tags) do
 						if tag:match("^pause:%d+%.?%d*$") then
@@ -749,28 +936,32 @@ function module.UI_inject(targetFrame, text, fontName, options)
 					continue
 				end
 
+				local corruptSelected
+				for _, tag in ipairs(segment.tags) do
+					local intensity = tag:match("^corrupt:(%d+)$")
+					if intensity then
+						corruptSelected = selectCorruptIndices(segment.text, tonumber(intensity))
+						break
+					end
+				end
+
 				for i, unit in utf8.graphemes(segment.text) do
+					if cancelled then
+						return
+					end
+
 					local char = segment.text:sub(i, unit)
 					local template = folder:FindFirstChild(char)
 
 					if template then
-						local rawCharW = template.Size.X.Offset * finalScaleModifier
-						local rawCharH = template.Size.Y.Offset * finalScaleModifier
+						local rawW = template.Size.X.Offset * lineScaleModifier
+						local rawH = template.Size.Y.Offset * lineScaleModifier
 
 						local wrapper = Instance.new("Frame")
 						wrapper.Name = "LetterWrapper"
 						wrapper.BackgroundTransparency = 1
-						if useScale then
-							-- Scale relative to the parent line frame's absolute size at build time
-							local parentAbsX = lineFrame.AbsoluteSize.X
-							local parentAbsY = lineFrame.AbsoluteSize.Y
-							wrapper.Size = UDim2.fromScale(
-								parentAbsX > 0 and (rawCharW / parentAbsX) or 0,
-								parentAbsY > 0 and (rawCharH / parentAbsY) or 1
-							)
-						else
-							wrapper.Size = UDim2.fromOffset(rawCharW, rawCharH)
-						end
+						wrapper.Size = useScale and UDim2.new(rawW / refWidth, 0, rawH / refHeight, 0)
+							or UDim2.fromOffset(rawW, rawH)
 						wrapper.LayoutOrder = letterCount
 						wrapper.Parent = lineFrame
 
@@ -781,31 +972,35 @@ function module.UI_inject(targetFrame, text, fontName, options)
 						letterFrame.Parent = wrapper
 						letterCount += 1
 
+						if options.onCharacter then
+							options.onCharacter(char, letterFrame)
+						end
+
 						local image = letterFrame:FindFirstChildWhichIsA("ImageLabel")
 						local emotionFired = false
 						if image then
-							local rawW = image.Size.X.Offset
-							local rawH = image.Size.Y.Offset
-							local rawPX = image.Position.X.Offset
-							local rawPY = image.Position.Y.Offset
+							local imgRawW = image.Size.X.Offset
+							local imgRawH = image.Size.Y.Offset
+							local imgRawPX = image.Position.X.Offset
+							local imgRawPY = image.Position.Y.Offset
 
 							if useScale then
-								-- Image fills its letterFrame (which is already scale-sized to 1,1);
-								-- position/size the glyph as scale-of-wrapper instead of raw offset.
-								local parentAbsX = wrapper.AbsoluteSize.X
-								local parentAbsY = wrapper.AbsoluteSize.Y
-								image.Size = UDim2.fromScale(
-									parentAbsX > 0 and ((rawW * finalScaleModifier) / parentAbsX) or 1,
-									parentAbsY > 0 and ((rawH * finalScaleModifier) / parentAbsY) or 1
+								image.Size = UDim2.new(
+									rawW > 0 and (imgRawW * lineScaleModifier) / rawW or 0,
+									0,
+									rawH > 0 and (imgRawH * lineScaleModifier) / rawH or 0,
+									0
 								)
-								image.Position = UDim2.fromScale(
-									parentAbsX > 0 and ((rawPX * finalScaleModifier) / parentAbsX) or 0,
-									parentAbsY > 0 and ((rawPY * finalScaleModifier) / parentAbsY) or 0
+								image.Position = UDim2.new(
+									rawW > 0 and (imgRawPX * lineScaleModifier) / rawW or 0,
+									0,
+									rawH > 0 and (imgRawPY * lineScaleModifier) / rawH or 0,
+									0
 								)
 							else
-								image.Size = UDim2.fromOffset(rawW * finalScaleModifier, rawH * finalScaleModifier)
+								image.Size = UDim2.fromOffset(imgRawW * lineScaleModifier, imgRawH * lineScaleModifier)
 								image.Position =
-									UDim2.fromOffset(rawPX * finalScaleModifier, rawPY * finalScaleModifier)
+									UDim2.fromOffset(imgRawPX * lineScaleModifier, imgRawPY * lineScaleModifier)
 							end
 
 							if useOutline then
@@ -827,7 +1022,6 @@ function module.UI_inject(targetFrame, text, fontName, options)
 												* textScale
 											local ry = math.random(-CONFIG.SHAKE_MAGNITUDE, CONFIG.SHAKE_MAGNITUDE)
 												* textScale
-
 											letterFrame.Position = UDim2.fromOffset(rx, ry)
 											task.wait(CONFIG.SHAKE_SPEED)
 										end
@@ -838,15 +1032,11 @@ function module.UI_inject(targetFrame, text, fontName, options)
 									table.insert(activeStoppers, function()
 										active = false
 									end)
-								elseif tag == "corrupt" then
-									local stop = applyCorruptEffect(
-										wrapper,
-										letterFrame,
-										image,
-										template.Size.X.Offset * finalScaleModifier,
-										template.Size.Y.Offset * finalScaleModifier
-									)
-									table.insert(activeStoppers, stop)
+								elseif tag:match("^corrupt:%d+$") then
+									if corruptSelected and corruptSelected[i] then
+										local stop = applyCorruptEffect(image, fontName, letterFrame)
+										table.insert(activeStoppers, stop)
+									end
 								elseif tag:match("^emotion:") and DialogueBindable and not emotionFired then
 									local emotion = tag:match("^emotion:(.+)$")
 									DialogueBindable:Fire("PlayAnimation", emotion)
@@ -865,8 +1055,11 @@ function module.UI_inject(targetFrame, text, fontName, options)
 			lineIndex += 1
 		end
 
-		if onComplete then
-			onComplete()
+		if not cancelled then
+			activeInjections[targetFrame] = nil
+			if onComplete then
+				onComplete()
+			end
 		end
 	end)
 

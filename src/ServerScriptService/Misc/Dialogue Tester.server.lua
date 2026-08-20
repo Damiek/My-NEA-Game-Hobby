@@ -1,7 +1,7 @@
 local RS= game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 local text = require(RS.Modules.text)
-local Prox:ProximityPrompt = workspace.Tester.STart
+
 
 
 local DialogueParams = {
@@ -21,12 +21,38 @@ print("Yo Bro Dialouge InComing")
 RS:FindFirstChild("DialogueRemote",true):FireAllClients(RS.Dialogues.Dialogue_Configs.Tutorial,DialogueParams)
 
 
-Prox.Triggered:Connect(function()
-RS:FindFirstChild("DialogueRemote",true):FireAllClients(RS.Dialogues.Dialogue_Configs.TestDialogue,DialogueParams2)
-end)
-
 -- ignore
 text.UI_Set(nil)
+
+-- Adjust to your actual bone chain path/naming
+local root = workspace.TailTest.Tail.Root
+local minGravity = -200   -- root value
+local maxGravity = -1000  -- tip value, start here and re-run to taste
+
+local function applyGravityTaper(rootBone, minG, maxG)
+    local chain = { rootBone }
+    local current = rootBone
+    while true do
+        local nextBone
+        for _, child in current:GetChildren() do
+            if child:IsA("Bone") then
+                nextBone = child
+                break
+            end
+        end
+        if not nextBone then break end
+        table.insert(chain, nextBone)
+        current = nextBone
+    end
+
+    local total = #chain
+    for i, bone in chain do
+        local t = (i - 1) / (total - 1) -- 0 at root, 1 at tip
+        bone:SetAttribute("Gravity", Vector3.new(0, minG + (maxG - minG) * t, 0))
+    end
+end
+
+applyGravityTaper(root, minGravity, maxGravity)
 
 --[[
 This is the gist of everything
