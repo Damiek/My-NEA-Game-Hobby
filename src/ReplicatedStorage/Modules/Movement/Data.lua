@@ -135,7 +135,7 @@ local DataTable: DataSet = {
 	LedgeDistance = 0.4,
 
 	--// Crouch
-	CrouchSpeed = 11,
+	CrouchSpeed = 9,
 	CrouchCooldown = 0.1,
 	CrouchFov = 65,
 

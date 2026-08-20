@@ -292,6 +292,17 @@ function CrouchModule.StartSlide(MovementObj: ClientTypes.MovementObj)
 	end
 
 	local conn = nil
+	local SlideAtt = Instance.new("Attachment")
+	SlideAtt.Name = "SlideSlopeAtt"
+	SlideAtt.Parent = HRP
+	local algin = Instance.new("AlignOrientation")
+	algin.Name = "SlideSlopeAlignment"
+	algin.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	algin.Attachment0 = SlideAtt
+	algin.MaxTorque = math.huge
+	algin.Responsiveness = 50
+	algin.Parent = HRP
+
 	MovementObj.InfoTable.Slide.Stop = function()
 		if not MovementObj.States.ISSliding then
 			return
@@ -303,6 +314,12 @@ function CrouchModule.StartSlide(MovementObj: ClientTypes.MovementObj)
 		end
 		if bv and bv.Parent then
 			bv:Destroy()
+		end
+		if algin then
+			algin:Destroy()
+		end
+		if SlideAtt then
+			SlideAtt:Destroy()
 		end
 		if SlideAnim and SlideAnim.IsPlaying then
 			SlideAnim:Stop()
@@ -345,7 +362,11 @@ function CrouchModule.StartSlide(MovementObj: ClientTypes.MovementObj)
 			return
 		end
 
-		bv.Velocity = slideDir * speed
+		local tangent = slideDir - groundNormal * slideDir:Dot(groundNormal)
+		tangent = tangent.Magnitude < 0.001 and slideDir or tangent.Unit
+
+		algin.CFrame = CFrame.lookAlong(Vector3.zero, tangent, groundNormal)
+		bv.Velocity = tangent * speed
 	end)
 end
 

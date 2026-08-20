@@ -144,6 +144,9 @@ function FlowManager.StartSpeedLerp(MovementObj: ClientTypes.MovementObj)
         -- MOMENTUM PROFILE HANDLING
         if MovementObj.States.IsCrouching then
             flow.Momentum = math.max(0, flow.Momentum - (Config.MomentumDecayRate * Config.CrouchMomentumDrainMultiplier * dt))
+        elseif MovementObj.States.ISSliding then
+            -- the slide loop owns momentum while sliding (flat/uphill drains, downhill gains) --
+            -- sprint must NOT refill against it, or flat slides gain momentum.
         elseif MovementObj.IsActing.IsEXSprinting then
             flow.Momentum = math.min(flow.MaxMomentum, flow.Momentum + (10 * dt))
         elseif MovementObj.IsActing.IsSprinting then
@@ -197,7 +200,9 @@ function FlowManager.StartSpeedLerp(MovementObj: ClientTypes.MovementObj)
         end
 
         -- SPEED ASSIGNMENT & OVERRIDE SAFETY GUARD
-        if MovementObj.IsActing.Dodging then
+        if MovementObj.States.IsCrouching then
+            hum.WalkSpeed = SpeedModule.GetMovementSpeed(MovementObj.char, "CrouchSpeed", "Crouch")
+        elseif MovementObj.IsActing.Dodging then
             hum.WalkSpeed = flow.BaseSpeed
         elseif not flow.IsTransitioning then
             hum.WalkSpeed = clampedSpeed
