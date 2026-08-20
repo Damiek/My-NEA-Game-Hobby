@@ -279,7 +279,6 @@ end
 
 function module.Ragdoll(char, ragdollTime)
 	task.spawn(function()
-		print("Ragdoll")
 		if char:GetAttribute("IsRagdoll") then
 			return
 		end

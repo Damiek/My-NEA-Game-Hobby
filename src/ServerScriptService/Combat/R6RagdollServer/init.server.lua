@@ -75,12 +75,12 @@ local function replaceJoints(char, hum) --replacing the joints and other stuff
 	char.HumanoidRootPart.Massless = true
 	char.HumanoidRootPart.CanCollide = false
 
+	PlayRagdollSounds(char)
+
 	for _, motor in char:GetDescendants() do
 		if motor:IsA("Motor6D") and attachmentCFrames[motor.Name] then
 			motor.Enabled = false
 			
-			PlayRagdollSounds(char)
-
 			local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment")
 			a0.CFrame = attachmentCFrames[motor.Name][1]
 			a1.CFrame = attachmentCFrames[motor.Name][2]
