@@ -1,4 +1,11 @@
 local module = {}
+
+
+
+
+
+
+
 local info = {
 	["Fists"] = {
 		Damage = 10,
@@ -90,7 +97,14 @@ local info = {
 		HitboxOffset = CFrame.new(0, 0, -2.3),
 	},
 }
-function module.getStats(weapon)
+
+export type WeaponData = typeof(info.Fists)
+
+function module.getStats(weapon): WeaponData
 	return info[weapon]
 end
+
+
+
+
 return module

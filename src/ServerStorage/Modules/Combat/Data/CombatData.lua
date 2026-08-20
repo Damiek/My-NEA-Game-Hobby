@@ -16,6 +16,7 @@ CombatData.ActiveStatusEffects = {}
 CombatData.SuccessfulParry = {}
 CombatData.SuccessfulHyprParry = {}
 CombatData.ActiveRecoveryTracks = {}
+CombatData.APFrames = {}
 
 function CombatData.ClearForPlayer(identifier)
 	for key, tbl in pairs(CombatData) do

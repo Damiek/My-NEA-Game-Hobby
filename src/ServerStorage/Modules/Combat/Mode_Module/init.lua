@@ -6,6 +6,7 @@ local SSModules = SS.Modules
 -- Module references
 local ElementInfo = require(SSModules.Dictionaries.ElementInfo)
 local HelpfulModule = require(SSModules.Other.Helpful)
+local StatFormulas = require(SSModules.Other.StatFormulas)
 local Textmod = require(RS.Modules.text)
 local Combat_Data = require(SSModules.Combat.Data.CombatData)
 
@@ -107,7 +108,7 @@ function module.Mode1(char, npc)
 	char:SetAttribute("IsTransforming", true)
 
 	local element = char:GetAttribute("Element")
-	if element == nil or element == "..." then
+	if element == nil or element == "..." or element == "None" then
 		warn("[Mode_Module] Element attribute is invalid for character: " .. char.Name)
 		return
 	end
@@ -203,9 +204,10 @@ function module.Mode2(char, npc)
 	char:SetAttribute("iframes", true)
 	char:SetAttribute("IsTransforming", true)
 	char:SetAttribute("Mode2", true)
+	char:SetAttribute(StatFormulas.STAT_MULT_ATTRIBUTE, StatFormulas.CONFIG.TRANSFORM.StatMult)
 
 	local element = char:GetAttribute("Element")
-	if element == nil or element == "..." then
+	if element == nil or element == "..." or element == "None" then
 		warn("[Mode_Module] Element attribute is invalid for character: " .. char.Name)
 		return
 	end
@@ -297,7 +299,8 @@ function module.Mode2(char, npc)
 					mf = char:GetAttribute("MF")
 					maxMF = char:GetAttribute("MaxMF")
 					if mf and mf < maxMF then
-						char:SetAttribute("MF", math.min(mf + 2.5, maxMF))
+						char:SetAttribute("MF", math.min(mf + StatFormulas.CONFIG.MF.BuildupRate, maxMF))
+						char:SetAttribute("StopTime_MF", os.clock())
 					else
 						while char:GetAttribute("AstralDodgeActive") do
 							task.wait(0.1)
@@ -392,6 +395,7 @@ function module.Revert(char, npc)
 				char:SetAttribute("Equipped", true)
 				char:SetAttribute("iframes", false)
 				char:SetAttribute("Mode1", false)
+				char:SetAttribute(StatFormulas.STAT_MULT_ATTRIBUTE, 1)
 				EquipDebounce[Identifier] = false
 
 				if IdleAnims[Identifier] then
@@ -399,7 +403,8 @@ function module.Revert(char, npc)
 				end
 			end)
 	elseif char:GetAttribute("Mode2") then
-		module.Mode1(char)
+		char:SetAttribute(StatFormulas.STAT_MULT_ATTRIBUTE, 1)
+		module.Mode1(char, npc)
 	else
 		warn(char, "Is performing a false revert")
 	end

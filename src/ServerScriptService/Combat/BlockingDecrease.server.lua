@@ -16,11 +16,13 @@ local CONFIG = {
     BLOCKING = {
         BASE_DECREASE_TIME = 3,
         BASE_DECREASE_AMOUNT = 2,
+        --- TODO : Add the comabt versions
     },
 
     STAMINA = {
         BASE_REGEN_TIME = 2,
         BASE_REGEN_PERCENT = 10,
+        -- TODO : as the combat versions
     },
 
     MANA = {
@@ -29,6 +31,11 @@ local CONFIG = {
         BASE_REGEN_PERCENT = 10,
         COMBAT_REGEN_PERCENT = 5,
     },
+
+    MF = {
+        BASE_DECAY_TIME = 3,
+        BASE_DECAY_PERCENT = 10,
+    },
 }
 
 --[[ Connections ]]
@@ -36,6 +43,7 @@ local CONFIG = {
 local connectionRunning_Blocking = {}
 local connectionRunning_Stamina = {}
 local connectionRunning_Mana = {}
+local connectionRunning_MF = {}
 
 --[[ Functions ]]
 --
@@ -160,6 +168,44 @@ local function StartStaminaRegen(char)
     end)
 end
 
+local function StartMFDecay(char)
+    if connectionRunning_MF[char] then
+        return
+    end
+    if not char or not char.Parent then
+        return
+    end
+
+    local mf = char:GetAttribute("MF")
+    if not mf or mf <= 0 then
+        return
+    end
+
+    connectionRunning_MF[char] = true
+
+    if not char:GetAttribute("StopTime_MF") then
+        char:SetAttribute("StopTime_MF", os.clock())
+    end
+
+    task.spawn(function()
+        while char.Parent and (char:GetAttribute("MF") or 0) > 0 do
+            task.wait(0.5)
+
+            local lastStop = char:GetAttribute("StopTime_MF") or os.clock()
+
+            if os.clock() - lastStop >= CONFIG.MF.BASE_DECAY_TIME then
+                local currentMF = char:GetAttribute("MF") or 0
+                local maxMF = char:GetAttribute("MaxMF") or 1
+                local decayAmount = math.ceil(maxMF * (CONFIG.MF.BASE_DECAY_PERCENT / 100))
+                char:SetAttribute("MF", math.max(0, currentMF - decayAmount))
+                char:SetAttribute("StopTime_MF", os.clock())
+            end
+        end
+
+        connectionRunning_MF[char] = nil
+    end)
+end
+
 local function SetupCharacter(char)
     if not char then
         return
@@ -183,7 +229,11 @@ local function SetupCharacter(char)
     char:GetAttributeChangedSignal("IsEXSprinting"):Connect(function()
         StartStaminaRegen(char)
     end)
-    
+
+    char:GetAttributeChangedSignal("MF"):Connect(function()
+        StartMFDecay(char)
+    end)
+
     StartStaminaRegen(char)
 end
 

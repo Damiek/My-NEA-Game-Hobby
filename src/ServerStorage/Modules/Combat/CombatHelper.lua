@@ -55,7 +55,7 @@ function module.Attack(char, npc)
 		return
 	end
 
-	if HelpfullModule.CheckForAttributes(char, true, true, true, true, true, true, true, nil) then
+	if HelpfullModule.CheckForAttributes(char, true, true, true, true, true, true, true, nil, true) then
 		return
 	end
 	if HelpfullModule.ManageStamina(char, "Swing") then
@@ -73,7 +73,15 @@ function module.Attack(char, npc)
 	ServerCombatModule.ChangeCombo(char)
 	ServerCombatModule.stopAnims(hum)
 
-	hum.WalkSpeed = 16
+	-- Swing speed scales with AGL + AttackSpeedMultiplier + live flow bonus.
+	-- At base stats (AGL 10, mults 1, flow 1) this is 8, half of walk speed.
+	-- Rest mobility (AGL-scaled walk speed) is restored by ResetMobility in
+	-- cleanupSwing / CancelAttack.
+	local SpeedMods = require(RS.Modules.Movement.Ultils.Speed)
+	local flowBonus = HelpfullModule.GetCharFlowBonus(char)
+	local swingSpeed = 8 * SpeedMods.AGLMult(char:GetAttribute("AGL")) * SpeedMods.GetSpeedMult(char, "Attack") * flowBonus
+
+	hum.WalkSpeed = swingSpeed
 	hum.JumpHeight = 0
 
 	local WeaponStats = WeaponsStatsModule.getStats(currentWeapon)
@@ -83,6 +91,8 @@ function module.Attack(char, npc)
 	local playSwingAnimation = hum.Animator:LoadAnimation(SwingAnim)
 	local swingReset = WeaponStats.SwingReset
 	local swingFade = WeaponStats.SwingFade
+
+	
 
 	-- Disconnect any lingering connections from a previous swing
 	if Connections[Identifier] then
@@ -115,7 +125,7 @@ function module.Attack(char, npc)
 		pcall(function()
 			HitBoxes[Identifier]:Stop()
 		end)
-		HitBoxes[Identifier] = nil -- Clear reference so it can't be stopped again
+		HitBoxes[Identifier] = nil 
 	end
 		char:SetAttribute("Attacking", false)
 		char:SetAttribute("Swing", false)
@@ -276,7 +286,7 @@ function module.RevengeCounter(char: Model, npc)  -- TODO: Modify this to use th
 
 	VFX_Event:FireAllClients("HyprIndicator", HRP.CFrame)
 
-	-- SERVER-SIDE HITBOX CREATION HELPER
+	
 	local function TriggerRevengeHitbox()
 		if not HRP.Parent or not EHRP.Parent then
 			return
@@ -433,7 +443,7 @@ function module.Blink(char, npc, target)
 		HitServiceModule.Blink_Hitbox(char, currentWeapon, humanoid, npc, hit, Hit2nim)
 	end)
 
-	task.delay(0.5, function() -- would replace with anim event when added so its actually possbile to parry it
+	task.delay(0.5, function() -- TODO :  replace with anim event when added so its actually possbile to parry it
 		if BlinkHitbox then
 		pcall(function()
 			BlinkHitbox:Stop()

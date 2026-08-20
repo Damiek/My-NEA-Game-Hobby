@@ -52,6 +52,8 @@ end)
 BlockingEvent.OnServerEvent:Connect(function(plr, action)
 	local char = plr.Character
 
+	char:SetAttribute("HoldingBlock", action ~= "UnBlocking")
+
 	if HelpfullModule.CheckForAttributes(char, true, true, true, nil, true, false, true, nil) then
 		return
 	end

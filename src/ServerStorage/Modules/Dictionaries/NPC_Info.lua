@@ -85,6 +85,27 @@ local info = {
 		},
 	},
 
+	["SlashStormSpammer"] = {
+		Difficulty = "SlashStormSpammer",
+		Race = "Anomaly",
+		MobType = "Humanoid",
+		Element = "Astral",
+		Health = 10000,
+		Skills = {},
+		Talents = {},
+		Drops = {},
+		STAT_POINTS = {
+			VIT = 10,
+			Stamina = 255,
+			MaxStamina = 255,
+			STR = 10,
+			SPT = 10,
+			DEX = 10,
+			AGL = 10,
+			WPN = 10,
+		},
+	},
+
 	["Bandit"] = {
 		Difficulty = "Elite",
 		Race = "Anomaly",
@@ -131,7 +152,7 @@ local info = {
 	},
 }
 
-AIParams = {
+local AIParams = {
 	SmallFry = {
 		AggroRange = 30,
 		AttackRange = 8,

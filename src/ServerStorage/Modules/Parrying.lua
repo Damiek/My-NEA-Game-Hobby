@@ -8,8 +8,10 @@ local Events = RS.Events
 local SSModule = SS.Modules
 local WeaponAnimsFolder = RS.Animations.Weapons
 local VFX_Event = Events.VFX
+local MovementEvent: RemoteEvent = Events.Movement
 
 local HelpfullModule = require(SSModule.Other.Helpful)
+local BlockModule = require(SSModule.BlockModule)
 local Combat_Data = require(SSModule.Combat.Data.CombatData)
 local IntentService = require(SSModule.Combat.IntentService)
 
@@ -49,6 +51,11 @@ function ParryModule.ParryAttempt(char, npc)
 
 	char:SetAttribute("Parrying", true)
 	char:SetAttribute("Stunned", true)
+
+	local plr = Players:GetPlayerFromCharacter(char)
+	if plr then
+		MovementEvent:FireClient(plr, "ForceAction", "StopSprint")
+	end
 	IntentService.SetIntent(char, npc, "Parry")
 	
 	ParryAnims[Identifer] = hum:LoadAnimation(WeaponAnimsFolder[currentWeapon].Blocking.TryParry)
@@ -56,7 +63,7 @@ function ParryModule.ParryAttempt(char, npc)
 	
 	if not ParryCD.Hypr[Identifer] or tick() - ParryCD.Hypr[Identifer] >  2 then  -- Reversing the if statment to see if that works 
 		char:SetAttribute("HyprParry", true)
-		VFX_Event:FireAllClients("HighlightBlink", WeaponModel, Color3.new(0.980392, 0.380392, 0.003922), 0.30, 2, 0.1)		
+		VFX_Event:FireAllClients("HighlightBlink", WeaponModel, Color3.new(0.980392, 0.380392, 0.003922), 0.1, 2)	
 		print(char:GetAttribute("HyprParry"))
 	end
 	
@@ -106,6 +113,10 @@ function ParryModule.ParryAttempt(char, npc)
 
 		HelpfullModule.ResetMobility(char)
 		char:SetAttribute("Stunned", false)
+
+		if char:GetAttribute("HoldingBlock") then
+			BlockModule.ActivateBlocking(char)
+		end
 	end)
 end
 

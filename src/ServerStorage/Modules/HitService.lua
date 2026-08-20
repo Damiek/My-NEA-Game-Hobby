@@ -18,20 +18,17 @@ local SoundsModule = require(RS.Modules.Combat.SoundsModule)
 local ServerCombatModule = require(SSModules.CombatModule)
 local WeaponsStatsModule = require(SSModules.Dictionaries.WeaponStats)
 local HelpfulModule = require(SSModules.Other.Helpful)
+local StatFormulas = require(SSModules.Other.StatFormulas)
 local StunHandler = require(SSModules.Other.StunHandlerV2)
 local PassiveManger = require(SSModules.Combat.PassiveManger)
 local Threarts = require(SSModules.AI.ThreatTable)
-
---- Math Constants  DO NOT TOUCH THIS WILL EFFECT ALL WEAPON SCALING
-local Point_Cap = 80 -- This where the Plateau  for dmg drop off starts
-local k = 0.2 -- This is the rate of the drop off for Wepaon Scaling
 
 local function GetNPCFromCharacter(char)
 	local plr = game.Players:GetPlayerFromCharacter(char)
 	if plr then
 		return nil
 	end
-   local npcModule = require(SSModules.Objects.npc)
+	local npcModule = require(SSModules.Objects.npc)
 	return npcModule.GetNpcFromCharacter(char)
 end
 
@@ -47,12 +44,13 @@ end
 function module.Normal_Hitbox(char, weapon, eHum, npc, Hit, ...)
 	local hitAnim = ...
 	local Truehit = hitAnim
+	local plrModule = require(SSModules.Objects.plr)
 
 	if eHum and eHum.Parent ~= char then
 		local eChar = eHum.Parent
 		local Eplr = game.Players:GetPlayerFromCharacter(eChar)
 		local Enpc = GetNPCFromCharacter(eChar)
-		local attackerNpcObject = GetNPCFromCharacter(char) and require(SSModules.Objects.npc).GetNpcFromCharacter(char)
+		local attackerNpcObject = GetNPCFromCharacter(char)
 		local DEF_AIObj = nil
 		if Enpc then
 			DEF_AIObj = Enpc.AIObject
@@ -64,9 +62,9 @@ function module.Normal_Hitbox(char, weapon, eHum, npc, Hit, ...)
 		-- Dmg Varibles
 		local BaseDmg = WeaponStats.Damage
 		local Scaling = WeaponStats.Scaling
-		local WPN_Points = char:GetAttribute("WPN") or npc.WPN
-		local DEX_Points = char:GetAttribute("DEX") or npc.DEX
-		local SPT_Points = char:GetAttribute("SPT") or npc.SPT
+		local WPN_Points = StatFormulas.GetStat(char, "WPN", npc and npc.WPN)
+		local DEX_Points = StatFormulas.GetStat(char, "DEX", npc and npc.DEX)
+		local SPT_Points = StatFormulas.GetStat(char, "SPT", npc and npc.SPT)
 
 		local STAT_POINTS = {
 			DEX = DEX_Points,
@@ -74,15 +72,28 @@ function module.Normal_Hitbox(char, weapon, eHum, npc, Hit, ...)
 			SPT = SPT_Points,
 		}
 
-		local Dodges = char:GetAttribute("Dodges")
+		-- Resolve attacker's element object for dodge count
+		local attackerPlr = game.Players:GetPlayerFromCharacter(char)
+		local attackerObj = attackerPlr and plrModule.GetPLRFromPlayer(attackerPlr) or attackerNpcObject
+		local attackerDodges = 0
+		if attackerObj and attackerObj.Element then
+			attackerDodges = attackerObj.Element.Data.Dodges or 0
+		end
 
-		local P_eff = Point_Cap + (WPN_Points - Point_Cap) / (1 + math.exp(k * (WPN_Points - Point_Cap))) -- Soft Cap Formula
+		-- Resolve defender's element object for dodge count
+		local defenderObj = Eplr and plrModule.GetPLRFromPlayer(Eplr) or Enpc
+		local defenderDodges = 0
+		if defenderObj and defenderObj.Element then
+			defenderDodges = defenderObj.Element.Data.Dodges or 0
+		end
 
-		local Truedamage = BaseDmg + P_eff * ((BaseDmg / 1000) * Scaling) -- True Damage Formula
+		local P_eff = StatFormulas.WeaponPoints(WPN_Points)
+
+		local Truedamage = math.ceil(BaseDmg + P_eff * ((BaseDmg / 1000) * Scaling))
 
 		--Misc Varibles
 		local Knockback = WeaponStats.Knockback
-		local RagdollTime = WeaponStats.RagdollTime
+		--local RagdollTime = WeaponStats.RagdollTime
 		local stunTime = WeaponStats.StunTime
 
 		if DEF_AIObj then
@@ -107,7 +118,8 @@ function module.Normal_Hitbox(char, weapon, eHum, npc, Hit, ...)
 			return result
 		end
 
-		local PassiveCheckDmg, isCrit, damageAlreadydealt = PassiveManger.M1LandedPassive(char, eChar, Truedamage, STAT_POINTS)
+		local PassiveCheckDmg, isCrit, damageAlreadydealt =
+			PassiveManger.M1LandedPassive(attackerObj, defenderObj, Truedamage, STAT_POINTS)
 
 		print(PassiveCheckDmg)
 
@@ -128,12 +140,10 @@ function module.Normal_Hitbox(char, weapon, eHum, npc, Hit, ...)
 			UI_Update:FireClient(Eplr, KarmaDamage, eHum.Health, eHum.MaxHealth, PassiveCheckDmg)
 		end
 
-		if char:GetAttribute("Mode1", true) then
-			char:SetAttribute("ModeEnergy", 100)
-		end
+		
 
 		ServerCombatModule.stopAnims(eHum)
-		if Dodges and Dodges > 1 then
+		if attackerDodges and attackerDodges > 1 then
 			print("Dodged hitbox VFX")
 		else
 			VFX_Event:FireAllClients("CombatEffects", RS.Effects.Combat.Blood, Hit.CFrame, 3)
@@ -163,7 +173,7 @@ function module.Normal_Hitbox(char, weapon, eHum, npc, Hit, ...)
 
 		SoundsModule.PlaySound(WeaponSounds[weapon].Combat.Hit, eChar.Torso)
 
-		if eChar:GetAttribute("Dodges") and eChar:GetAttribute("Dodges") > 1 then
+		if defenderDodges and defenderDodges > 1 then
 			local hitAnim = WeaponsAnimations.TwinSpears.Dodge["Dodge" .. char:GetAttribute("Combo")]
 			eHum.Animator:LoadAnimation(hitAnim):Play()
 			VFX_Event:FireAllClients("AfterImage", eChar, hitAnim, nil)
@@ -173,7 +183,7 @@ function module.Normal_Hitbox(char, weapon, eHum, npc, Hit, ...)
 
 		module.BodyVelocity(char.HumanoidRootPart, char.HumanoidRootPart, Knockback, 0.2)
 
-		if eChar:GetAttribute("Dodges") and eChar:GetAttribute("Dodges") > 1 and char:GetAttribute("Combo") >= 4 then
+		if defenderDodges and defenderDodges > 1 and char:GetAttribute("Combo") >= 4 then
 			-- BoneModule.DodgeRandomTP(eChar, char)
 			-- TODO: Replace the aboove with the element object rather than a pure module
 		elseif char:GetAttribute("Combo") >= 4 then
@@ -183,7 +193,7 @@ function module.Normal_Hitbox(char, weapon, eHum, npc, Hit, ...)
 
 		module.BodyVelocity(eHRP, char.HumanoidRootPart, Knockback, 0.3)
 
-		StunHandler.Stun(eHum, stunTime)
+		StunHandler.Stun(eHum, stunTime,0,0)
 		print(result)
 		return result
 	end
@@ -194,6 +204,7 @@ end
 function module.Blink_Hitbox(char, weapon, eHum, npc, Hit, ...)
 	local hitAnim = ...
 	local Truehit = hitAnim
+	local plrModule = require(SSModules.Objects.plr)
 
 	if eHum and eHum.Parent ~= char then
 		local eChar = eHum.Parent
@@ -213,7 +224,16 @@ function module.Blink_Hitbox(char, weapon, eHum, npc, Hit, ...)
 
 		print(eHum)
 
-		if eChar:GetAttribute("Dodges") and eChar:GetAttribute("Dodges") > 1 then
+		-- Resolve defender's element object for dodge count
+		local blinkDefenderObj = Eplr and plrModule.GetPLRFromPlayer(Eplr)
+		local blinkDefenderDodges = 0
+		if blinkDefenderObj and blinkDefenderObj.Element then
+			blinkDefenderDodges = blinkDefenderObj.Element.Data.Dodges or 0
+		elseif Enpc and Enpc.Element then
+			blinkDefenderDodges = Enpc.Element.Data.Dodges or 0
+		end
+
+		if blinkDefenderDodges and blinkDefenderDodges > 1 then
 			local hitAnim = WeaponsAnimations.TwinSpears.Dodge["Dodge" .. char:GetAttribute("Combo")]
 			eHum.Animator:LoadAnimation(hitAnim):Play()
 			VFX_Event:FireAllClients("AfterImage", eChar, hitAnim, nil)

@@ -21,6 +21,20 @@ function IntentService.SetIntent(char, npc, intent)
     if obj then
         obj.Intent = intent
     end
+    if char then
+        char:SetAttribute("Intent", intent)
+    end
+end
+
+function IntentService.GetIntent(char, npc)
+    local obj = GetCombatObject(char, npc)
+    if obj then
+        return obj.Intent
+    end
+    if char then
+        return char:GetAttribute("Intent")
+    end
+    return nil
 end
 
 return IntentService

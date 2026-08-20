@@ -2,10 +2,10 @@ local RS = game:GetService("ReplicatedStorage")
 local SS = game:GetService("ServerStorage")
 
 local SSModules = SS.Modules
-local ElementModule_Folder = SSModules.Element
 local HelpfullModule = require(SSModules.Other.Helpful)
 local SkillInfo = require(SSModules.Dictionaries.SkillInfo)
 local IntentService = require(SSModules.Combat.IntentService)
+local plrModule = require(SSModules.Objects.plr)
 
 
 local Events = RS.Events
@@ -55,22 +55,10 @@ MoveEvent.OnServerEvent:Connect(function(plr, action)
 	local char = plr.Character
 	if not char then return end
 
+	local plrObj = plrModule.GetPLRFromPlayer(plr)
+	if not plrObj or not plrObj.Element then return end
 
-	local element = char:GetAttribute("Element")
-	if not element then warn("No Element attribute for", plr.Name) return end
-
-
-
-
-	local elementModule = ElementModule_Folder:FindFirstChild(element)
-	if not elementModule then return end
-
-
-
-	local module = require(elementModule)
-
-
-	if HelpfullModule.CheckForAttributes(char, true, true, true, nil, true, true, true) then
+	if HelpfullModule.CheckForAttributes(char, true, true, true, nil, true, true, true, nil, true) then
 		warn("CheckForAttributes blocked the move")
 		return
 	end
@@ -79,20 +67,20 @@ MoveEvent.OnServerEvent:Connect(function(plr, action)
 	if not slot then return end
 
 	local mode = GetMode(char)
-	local intentType = ResolveIntentType(element, slot, mode)
+	local intentType = ResolveIntentType(plrObj.Element.Name, slot, mode)
 	if intentType then
 		IntentService.SetIntent(char, nil, intentType)
 	end
 
 	if action == "Z Move" then
-		module.Z(char)
+		plrObj.Element:Z(char)
 	elseif action == "X Move" then
-		module.X(char)
+		plrObj.Element:X(char)
 	elseif action == "C Move" then
-		module.C(char)
+		plrObj.Element:C(char)
 	elseif action == "R Move" then
-		module.R(char)
+		plrObj.Element:R(char)
 	elseif action == "V Move" then
-		module.V(char)
+		plrObj.Element:V(char)
 	end
 end)

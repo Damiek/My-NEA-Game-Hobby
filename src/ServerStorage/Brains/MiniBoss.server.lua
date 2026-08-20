@@ -1,31 +1,14 @@
+
 local RS = game:GetService("ReplicatedStorage")
-local SS = game:GetService("ServerStorage")
 local RunService = game:GetService("RunService")
 
 
-local Events = RS.Events
-
-local RSModules = RS.Modules
-local SSModules = SS.Modules
-
-local CombatEvent = Events.Combat
-local WeaponsModels = RS.Models.Weapons
-local WeaponsWeld = RS.Welds.Weapons
-local AnimationsFolder = RS.Animations
-local WeaponsAnimations = AnimationsFolder.Weapons
 
 
 local BehaviourTreeCreator = require(RS.BehaviorTreeCreator)
-
-
-local CombatHelperModule =require(SSModules.Combat.CombatHelper)
-local HelpfullModule = require(SSModules.Other.Helpful)
-local Mode_Module =require(SSModules.Combat.Mode_Module)
-local Combat_Data = require(SSModules.Combat.Data.CombatData)
 local AI_TREE = BehaviourTreeCreator:_createTree(RS.AI_Trees.BasicEnemy)
 
 local char = script.Parent
-local HRP = char.HumanoidRootPart
 local Humanoid = char.Humanoid
 
 char:SetAttribute("Equipped", true)
@@ -47,24 +30,7 @@ char:SetAttribute("Dodges",0)
 char:SetAttribute("Sprinting",false)
 char:SetAttribute("IsCrouching",false)
 
-local Welds = Combat_Data.Welds
-local EquipAnims = Combat_Data.EquipAnims
-local UnEquipAnims = Combat_Data.UnEquipAnims
-local IdleAnims = Combat_Data.IdleAnims
-local BlockingAnims = Combat_Data.BlockingAnims
-local TransformAnims = Combat_Data.TransformAnims
-local ParryAnims = Combat_Data.ParryAnims
-local DodgeAnims = Combat_Data.DodgeAnims
-local EquipDebounce = Combat_Data.EquipDebounce
-local DodgeDebounce = Combat_Data.DodgeDebounce
 
-local Race = "SoulReaper"
-
-local function getUniqueId(char:Model)
-	local uid = char.Humanoid:FindFirstChild("UniqueId")
-	local UID_Value = uid.Value
-	return UID_Value
-end
 
 
 local Object = {

@@ -9,10 +9,10 @@ local uis = game:GetService("UserInputService")
 local localplr = PLayers.LocalPlayer
 local cam = workspace.CurrentCamera
 
-local AnimationsFolder = RS.Animations
-local ElementAnims = AnimationsFolder.Element
 
 local hiddenElements = {}
+local TOP_HIDDEN = UDim2.new(-0.001, 0, -0.4, 0)
+local BOTTOM_HIDDEN = UDim2.new(-0.034, 0, 1.1, 0)
 
 local function Shiftoff(char)
 	local hum = char.Humanoid
@@ -76,8 +76,6 @@ function module.ResetBars(char)
 	local Top = nil
 	local Bottom = nil
 
-	local TOP_HIDDEN = UDim2.new(-0.001, 0, -0.4, 0)
-	local BOTTOM_HIDDEN = UDim2.new(-0.034, 0, 1.1, 0)
 	local tweenSlide = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
 
 	if plr and plr == localplr then
@@ -111,7 +109,7 @@ function module.EmitEffect(Targeteffect, cframe, destroytime)
 	effect.Parent = workspace.VFX
 	effect.CFrame = cframe
 
-	for i, v in pairs(effect:GetDescendants()) do
+	for _, v in pairs(effect:GetDescendants()) do
 		if v:isA("ParticleEmitter") then
 			v:Emit(v:GetAttribute("EmitCount"))
 		end
@@ -120,7 +118,6 @@ function module.EmitEffect(Targeteffect, cframe, destroytime)
 	Debris:AddItem(effect, destroytime)
 end
 
-local targetObject = nil
 
 function module.Highlight(char, duration, FillColor, OutlineColor)
 	local Highlight = Instance.new("Highlight")
@@ -260,7 +257,14 @@ function module.AfterImage(char, anim, type)
 	else
 		if type == "AstralDodge" then
 			char.Archivable = true
-			local sourceTrack = RS.Animations.Weapons.ShootingStar.Dodging.W
+
+			local function GetDodgeTrack(char)
+				local letter = char:GetAttribute("CurrentMoveKey") or "W"
+				if letter == "None" then letter = "W" end
+				return RS.Animations.Weapons.ShootingStar.Dodging[letter] or RS.Animations.Weapons.ShootingStar.Dodging.W
+			end
+
+			local sourceTrack = GetDodgeTrack(char)
 
 			local Colors = {
 				{ Fill = Color3.fromRGB(119, 0, 255), Outline = Color3.fromRGB(113, 5, 255) },
@@ -270,14 +274,22 @@ function module.AfterImage(char, anim, type)
 				{ Fill = Color3.fromRGB(50, 100, 255), Outline = Color3.fromRGB(30, 80, 220) },
 			}
 
+			local FillTransparency = -1 -- was
+			local BlinkCycles = 3
+			local BlinkStepDuration = 0.07
+
+			local DodgeDuration = 0.25
+			local CloneInterval = 0.04
+			local CloneCount = math.max(1, math.floor(DodgeDuration / CloneInterval))
+
 			coroutine.wrap(function()
-				for i = 1, 8 do
-					task.wait(0.04)
+				for i = 1, CloneCount do
+					task.wait(CloneInterval)
 					if not char then break end
 
 					local clone = char:Clone() :: Model
 					clone.Humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-					clone.Name = "AfterImage"
+					clone.Name = "AfterImage"..char.Name
 
 					local colorIndex = (i - 1) % #Colors + 1
 					local startColor = Colors[colorIndex]
@@ -285,10 +297,10 @@ function module.AfterImage(char, anim, type)
 
 					local Highlight = clone:FindFirstChildOfClass("Highlight") or Instance.new("Highlight")
 					Highlight.Parent = clone
-					Highlight.DepthMode = Enum.HighlightDepthMode.Occluded
-					Highlight.FillTransparency = 0.4
+					Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop  -- was occluded
+					Highlight.FillTransparency = FillTransparency
 					Highlight.FillColor = startColor.Fill
-					Highlight.OutlineTransparency = 0.5
+					Highlight.OutlineTransparency =  1  -- was 0.5
 					Highlight.OutlineColor = startColor.Outline
 
 					local PointLight = Instance.new("PointLight", clone.HumanoidRootPart)
@@ -298,17 +310,19 @@ function module.AfterImage(char, anim, type)
 					PointLight.Shadows = false
 
 					for _, part in pairs(clone:GetDescendants()) do
-						if part.Name == "ShootingStar" then
+						if part:IsA("Script") or part:IsA("LocalScript") or part:IsA("ModuleScript") or part:IsA("BillboardGui") then
 							part:Destroy()
 						end
-						if part:IsA("Script") or part:IsA("LocalScript") or part:IsA("ModuleScript") or part:IsA("BillboardGui") then
+						if part:IsA("Decal") or part:IsA("Texture") then
 							part:Destroy()
 						end
 						if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
 							if part:IsA("MeshPart") then part.TextureID = "" end
 							part.Transparency = 0.5
 							part.CollisionGroup = "VFX_Models"
-							part.Color = Color3.fromRGB(170, 170, 255)
+							part.CanCollide = false
+							part.Anchored = true
+							part.Color = startColor.Outline
 						end
 					end
 
@@ -329,64 +343,110 @@ function module.AfterImage(char, anim, type)
 						OutlineColor = nextColor.Outline,
 					}):Play()
 
+				
+
 					TS:Create(PointLight, TweenInfo.new(1.2, Enum.EasingStyle.Linear), {
 						Color = nextColor.Fill,
 					}):Play()
 
-					task.delay(1.2, function()
+					task.delay(0.15 + (i * 0.02), function()
 						if not clone then return end
 
-						local tweensLeft = 0
-
-						for _, part in ipairs(clone:GetDescendants()) do
-							if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-								tweensLeft += 1
-
-								local randDir = Vector3.new(
-									math.random(-100, 100) / 100,
-									math.random(20, 60) / 100,
-									math.random(-100, 100) / 100
-								).Unit
-								local targetPos = part.Position + randDir * math.random(3, 8) + Vector3.new(0, math.random(2, 5), 0)
-								local targetSize = part.Size * math.random(110, 130) / 100
-
-								TS:Create(part, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-									CFrame = CFrame.new(targetPos) * part.CFrame.Rotation,
-									Size = targetSize,
-								}):Play()
-
-								task.delay(0.25, function()
-									local t = TS:Create(part, TweenInfo.new(0.3, Enum.EasingStyle.Linear), {
-										Transparency = 1,
-									})
-									t.Completed:Connect(function()
-										tweensLeft -= 1
-										if tweensLeft <= 0 and clone then
-											clone:Destroy()
-										end
-									end)
-									t:Play()
-								end)
+						coroutine.wrap(function()
+							local blinkParts = {}
+							local baseCFrames = {}
+							for _, part in ipairs(clone:GetDescendants()) do
+								if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+									table.insert(blinkParts, part)
+									baseCFrames[part] = part.CFrame
+								end
 							end
-						end
 
-						if Highlight then
-							TS:Create(Highlight, TweenInfo.new(0.55, Enum.EasingStyle.Linear), {
+							local function BlinkAll(partTransparency)
+								for _, part in ipairs(blinkParts) do
+									TS:Create(part, TweenInfo.new(BlinkStepDuration, Enum.EasingStyle.Linear), {
+										Transparency = partTransparency,
+									}):Play()
+								end
+							end
+
+							local vibrating = true
+							task.spawn(function()
+								while vibrating do
+									local offset = Vector3.new(
+										(math.random() - 0.8) * 0.4,
+										(math.random() - 0.8) * 0.4,
+										(math.random() - 0.8) * 0.4
+									)
+									for _, part in ipairs(blinkParts) do
+										part.CFrame = baseCFrames[part] * CFrame.new(offset)
+									end
+									task.wait(1 / 50)
+								end
+								for _, part in ipairs(blinkParts) do
+									part.CFrame = baseCFrames[part]
+								end
+							end)
+
+							for _ = 1, BlinkCycles do
+								if not clone then return end
+								local blinkOut = TS:Create(Highlight, TweenInfo.new(BlinkStepDuration, Enum.EasingStyle.Linear), {
+									FillTransparency = 1,
+								})
+								BlinkAll(1)
+								blinkOut:Play()
+								blinkOut.Completed:Wait()
+
+								if not clone then return end
+								local blinkIn = TS:Create(Highlight, TweenInfo.new(BlinkStepDuration, Enum.EasingStyle.Linear), {
+									FillTransparency = FillTransparency,
+								})
+								BlinkAll(0.5)
+								blinkIn:Play()
+								blinkIn.Completed:Wait()
+							end
+
+							vibrating = false
+							task.wait()
+
+							if not clone then return end
+
+							for _, part in ipairs(clone:GetDescendants()) do
+								if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+									local randDir = Vector3.new(
+										math.random(-100, 100) / 100,
+										math.random(20, 60) / 100,
+										math.random(-100, 100) / 100
+									).Unit
+									local targetPos = part.Position + randDir * math.random(3, 8) + Vector3.new(0, math.random(2, 5), 0)
+									local targetSize = part.Size * math.random(110, 130) / 100
+
+									TS:Create(part, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+										CFrame = CFrame.new(targetPos) * part.CFrame.Rotation,
+										Size = targetSize,
+									}):Play()
+
+									TS:Create(part, TweenInfo.new(0.2, Enum.EasingStyle.Linear), {
+										Transparency = 1,
+									}):Play()
+								end
+							end
+
+							local fadeOut = TS:Create(Highlight, TweenInfo.new(0.2, Enum.EasingStyle.Linear), {
 								FillTransparency = 1,
 								OutlineTransparency = 1,
-							}):Play()
-						end
-						if PointLight then
-							TS:Create(PointLight, TweenInfo.new(0.55, Enum.EasingStyle.Linear), {
-								Brightness = 0,
-							}):Play()
-						end
-
-						if tweensLeft <= 0 then
-							task.delay(0.6, function()
+							})
+							fadeOut.Completed:Connect(function()
 								if clone then clone:Destroy() end
 							end)
-						end
+							fadeOut:Play()
+
+							if PointLight then
+								TS:Create(PointLight, TweenInfo.new(0.2, Enum.EasingStyle.Linear), {
+									Brightness = 0,
+								}):Play()
+							end
+						end)()
 					end)
 				end
 			end)()
@@ -452,7 +512,6 @@ function module.HyprVfx(char, echar, isMainSource)
 	hl.FillTransparency = 0.9
 	hl.OutlineTransparency = 0.2
 	hl.OutlineColor = Color3.fromRGB(216, 181, 55)
-	hl.OutlineColor = Color3.fromRGB(171, 141, 33)
 	hl.Parent = char
 
 	Debris:AddItem(hl, 0.5)
@@ -545,7 +604,7 @@ function module.HyprVfx(char, echar, isMainSource)
 end
 
 module.DestroyEffects = function(char, effect)
-	for i, v in pairs(workspace.VFX:GetChildren()) do
+	for _, v in pairs(workspace.VFX:GetChildren()) do
 		if v.Name == effect.Name and v:GetAttribute("OwnerCharacter") == char.Name then
 			v:Destroy()
 		end

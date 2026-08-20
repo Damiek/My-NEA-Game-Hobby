@@ -12,12 +12,12 @@
 	.Difficulty string -- e.g. "Boss", used to pick the model template and Brain script
 	.MobType string -- e.g. "Humanoid", "Human"; affects model creation and element assignment
 	.Character Model -- The NPC's physical character model in the workspace
-	.Element string -- The NPC's combat element, or "None" for non-humanoid mobs without one
+	.Element ElementObject? -- The NPC's combat element object, or nil for non-humanoid mobs without one
 	.Brain Script -- The behavior-tree script driving this NPC, parented under Character
 	.talents {} -- Reserved for future talent data
 	.skills {} -- Reserved for future skill data
 	.drops {} -- Loot table entries chosen on death (currently unused, see PickDrops)
-	.MovementObj MovementTypes.MovementObj -- Handles this NPC's movement mechanics (dodge, climb, wall run)
+	.MovementObj ServerTypes.MovementObj -- Handles this NPC's movement mechanics (dodge, climb, wall run)
 	.Intent -- This is the buffer that holds what combat action is the actor waiting to do
 	.AIObject -- reference to the brain script's Object table (holds .Threats, .Target, etc.)
 	@within NPC
@@ -59,7 +59,8 @@ local Combat_Data = require(SSModules.Combat.Data.CombatData)
 local EquipModule = require(SSModules.Combat.EquipModule)
 local HelpfullModule = require(SSModules.Other.Helpful)
 local Movement = require(RS.Modules.Movement.Objects.Movement)
-local MovementTypes = require(RS.Modules.Movement.Objects.Movement.Types)
+local ServerTypes = require(SSModules.ServerTypes)
+local SpeedMods = require(RS.Modules.Movement.Ultils.Speed)
 
 local Brain_Folder = SS.Brains
 local NPCFolder = game.workspace.NPC
@@ -69,32 +70,13 @@ local WeaponAnimations = RS.Animations.Weapons
 npc.__index = npc
 local CharToNPC = {}
 
-export type NPC = typeof(setmetatable(
-	{} :: {
-		FirstName: string,
-		LastName: string,
-		Difficulty: string,
-		MobType: string,
-		Character: Model,
-		Element: string,
-		Brain: Script,
-		talents: {},
-		skills: {},
-		drops: {},
-		MovementObj: MovementTypes.MovementObj,
-		Intent: string,
-		AIObject: {}?,
-	},
-	npc
-))
+export type NPC = ServerTypes.NPC
 
 local function CreateModel(npcName, Difficulty, MobType)
 	local TargetTemplate: Model = nil
-	if Difficulty == "Boss" then
+	-- Then I would randomise hair, skintone, face etc once i make a customastion module
+	if Difficulty == "Boss" or MobType == "Humanoid" or MobType == "Human" then
 		TargetTemplate = NPCModels:FindFirstChild(npcName)
-	elseif MobType == "Humanoid" or MobType == "Human" then
-		TargetTemplate = NPCModels:FindFirstChild(npcName)
-		-- Then i would randomise hair, skintone, face etc once i make a customastion module
 	else
 		TargetTemplate = NPCModels[npcName]
 	end
@@ -130,21 +112,25 @@ end
 function npc.new(NpcName: string, char: Model?): NPC
 	-- TODO: remove debug prints once out of beta
 	print("➔ npc.new() called! NpcName provided:", tostring(NpcName), "| Type:", type(NpcName))
-	local self = setmetatable({
-		FirstName = "",
-		LastName = "",
-		Difficulty = "",
-		MobType = "",
-		Character = nil :: any,
-		Element = "",
-		Brain = nil :: any,
-		talents = {},
-		skills = {},
-		drops = {},
-		Intent = "None",
-		AIObject = nil, -- NEW
-	}, npc) :: NPC
 
+	local self = (
+		setmetatable({
+			FirstName = "",
+			LastName = "",
+			Difficulty = "",
+			MobType = "",
+			Character = nil :: any,
+			Element = nil :: any,
+			MovementObj = nil :: any,
+			Brain = nil :: any,
+			talents = {},
+			skills = {},
+			drops = {},
+			Intent = "None",
+			AIObject = nil :: any,
+		}, npc) :: any
+	) :: NPC
+	
 	local NPCinfo = NPC_Dictionary.getStats(NpcName)
 	print(NPCinfo)
 	print(NPC_Dictionary)
@@ -186,22 +172,37 @@ function npc.new(NpcName: string, char: Model?): NPC
 		HelpfullModule.ChangeWeapon(self, self.Character, Torso)
 		self:EquipWeapon()
 
-		if self.Difficulty == "Boss" then
-			self.Element = NPCinfo.Element
-			self.Character:SetAttribute("Element", self.Element)
-		elseif self.MobType == "Humanoid" then
-			-- Handle humanoid-specific initialization will be random from a table of movesets in the npc info
-			-- But for now
-			self.Element = NPCinfo.Element
-			self.Character:SetAttribute("Element", self.Element)
+		if self.Difficulty == "Boss" or self.MobType == "Humanoid" then
+			local ElementModule = require(SSModules.Element[NPCinfo.Element])
+			self.Element = ElementModule.new()
+			self.Character:SetAttribute("Element", self.Element.Name)
 		else
-			-- These are non-humanoids that dont use an element -- I might be wrong here though since mobs would have their own movesets so might create thier own element class for it
-			self.Element = "None"
+			self.Element = nil
 			self.Character:SetAttribute("Element", "None")
 		end
 	else
 		self.Brain = self.Character.Brain
-		self.Element = self.Character:GetAttribute("Element")
+		local attr = self.Character:GetAttribute("Element")
+		if attr and attr ~= "None" and attr ~= "" then
+			self.Element = require(SSModules.Element[attr]).new()
+		else
+			self.Element = nil
+		end
+
+	end
+
+	if self.Element and self.Element.Innate then
+		self.Element:Innate(self.Character)
+	end
+
+	-- Apply AGL-scaled mobility. STAT_POINTS are applied AFTER Movement.new, so the
+	-- flow's captured base speed ignored the NPC's AGL; rebase it here.
+	HelpfullModule.ResetMobility(self.Character)
+	if self.MovementObj and self.MovementObj.Flow then
+		local walkSpeed = SpeedMods.GetMovementSpeed(self.Character, "WalkSpeed", "Walk")
+		self.MovementObj.Flow.BaseSpeed = walkSpeed
+		self.MovementObj.Flow.CurrentSpeed = walkSpeed
+		self.MovementObj.Flow.TargetSpeed = walkSpeed
 	end
 
 	CharToNPC[self.Character] = self
@@ -244,7 +245,7 @@ function npc:Destroy()
 	self.Character:Destroy()
 	table.clear(self)
 	table.freeze(self)
-	for k, v in pairs(Combat_Data) do
+	for _, v in pairs(Combat_Data) do
 		if type(v) == "table" then
 			table.remove(v, table.find(v, self))
 		end
@@ -338,7 +339,7 @@ end
 
 	@within NPC
 ]=]
-function npc:Dodge(Direction)
+function npc:Dodge()
 	if self.Character:GetAttribute("IsTransforming") then
 		return
 	end
