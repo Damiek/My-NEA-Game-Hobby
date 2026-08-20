@@ -1,5 +1,6 @@
 local Ultils = {}
 local TS = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 local cam: Camera = workspace.CurrentCamera
 
 local TOP_TILT_NORMAL_LEFT = UDim2.new(-0.672, 0, -0.157, 0)
@@ -23,15 +24,53 @@ local Tilt_BOTTOM_HIDDEN_LEFT = UDim2.new(-1.325, 0, 2, 0)
 local tweenSlide = TweenInfo.new(0.35, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 
 local Type = require(script.Parent.Types)
+local MovementData = require(script.Parent.Parent.Parent.Data)
 
 local function GetFlowModifiers(MovementObj: Type.MovementObj)
     local flow = MovementObj.Flow
     if not flow then return 0, 1 end
     
     local momentumRatio = (flow.Momentum or 0) / (flow.MaxMomentum or 100)
-    local speedRatio = (flow.CurrentSpeed or 16) / 16
+    local baseSpeed = MovementData.Data.WalkSpeed
+    local speedRatio = (flow.CurrentSpeed or baseSpeed) / baseSpeed
     
     return momentumRatio, speedRatio
+end
+
+-- Wallrun camera lean: a persistent per-frame roll applied after the default
+-- camera updates (which resets roll every frame, so a one-shot tween won't hold).
+local leanState = setmetatable({}, { __mode = "k" })
+
+local function ApplyLean(MovementObj: Type.MovementObj, targetRoll: number)
+    if not MovementObj then return end
+
+    local entry = leanState[MovementObj]
+    if not entry then
+        entry = { conn = nil, current = 0 }
+        leanState[MovementObj] = entry
+    end
+    entry.target = targetRoll
+
+    if entry.conn then return end
+
+    entry.conn = RunService.RenderStepped:Connect(function(dt)
+        local e = leanState[MovementObj]
+        if not e then return end
+
+        local alpha = 1 - math.exp(-12 * dt)
+        e.current = e.current + (e.target - e.current) * alpha
+
+        local currentCam = workspace.CurrentCamera or cam
+        if currentCam then
+            currentCam.CFrame = currentCam.CFrame * CFrame.Angles(0, 0, e.current)
+        end
+
+        if e.target == 0 and math.abs(e.current) < 0.001 then
+            e.conn:Disconnect()
+            e.conn = nil
+            leanState[MovementObj] = nil
+        end
+    end)
 end
 
 local function WallJumpBars(side, MovementObj: Type.MovementObj)
@@ -78,6 +117,9 @@ function Ultils.StartWallrunBars(side: number, MovementObj: Type.MovementObj)
     local Top_tilt = UItable.top_tilt
     local Bottom_tilt = UItable.bottom_tilt
 
+    -- Camera banks away from the wall (matches the CameraOffset push below).
+    ApplyLean(MovementObj, math.rad(-side * MovementData.Data.WallRunCamLean))
+
     local momentumRatio, speedRatio = GetFlowModifiers(MovementObj)
     local targetFov = math.clamp(75 + (20 * momentumRatio) * speedRatio, 70, 78)
     
@@ -112,6 +154,9 @@ function Ultils.StopWallrunBars(side: number, MovementObj: Type.MovementObj, act
     local UItable = MovementObj.UI
     local Top_tilt = UItable.top_tilt
     local Bottom_tilt = UItable.bottom_tilt
+
+    -- Ease the roll back to level regardless of stop reason (incl. wall jump).
+    ApplyLean(MovementObj, 0)
 
     if not action then action = "Stop" end
 

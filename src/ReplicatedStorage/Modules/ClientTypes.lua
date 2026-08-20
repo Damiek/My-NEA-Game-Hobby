@@ -30,6 +30,12 @@ export type MovementObjData = {
 			Stop: (reason: string) -> (),
 		},
 
+		DoubleJump: {
+			FreeJumps:number,
+			Used: number, -- How many air jumps have been used
+			LastTime: number, -- Timestamp of the last double jump (drives the air dodge bonus window)
+		},
+
 		Dodge: {
 			Dir: Vector3, -- Direction of the dodge (forward, back, left, right and spot)
 			Type: string, -- Type of dodge (standard, airdash,)
@@ -38,6 +44,9 @@ export type MovementObjData = {
 		},
 
 		Climb: {
+			FreeClimbs: number,
+			Used: number,
+			LastTime:number,
 			Stop: () -> (),
 		},
 
@@ -115,12 +124,26 @@ export type MovementObjMethods = {
 	UpdateWalkTracks: (self: MovementObj) -> (),
 	WalkCycle: (self: MovementObj) -> (),
 	ClearWalkAnims: (self: MovementObj) -> (),
-	ServerRequest: (self: MovementObj, action: string) -> (),
-	StateChecker: (self: MovementObj, action: string, Ignore: boolean) -> (),
+	ServerRequest: (self: MovementObj, action: string, ...any) -> (),
+	StateChecker: (self: MovementObj, action: string, Ignore: boolean) -> boolean,
 	Destroy: (self: MovementObj) -> (),
 	GetAttributeChangedSignal: (self: MovementObj, attributeName: string) -> (),
 }
 
 export type MovementObj = MovementObjData & MovementObjMethods
+
+export type ElementBase = {
+	Name: string,
+	Data: { [string]: any },
+	R: (self: ElementBase, char: Model) -> (),
+	Z: (self: ElementBase, char: Model) -> (),
+	X: (self: ElementBase, char: Model) -> (),
+	C: (self: ElementBase, char: Model) -> (),
+	V: (self: ElementBase, char: Model) -> (),
+	Innate: ((self: ElementBase, char: Model) -> ())?,
+	Mode1Init: ((self: ElementBase, char: Model) -> ())?,
+	Mode2Init: ((self: ElementBase, char: Model) -> ())?,
+	RevengeCounter: ((self: ElementBase, char: Model, target: Model) -> ())?,
+}
 
 return {}

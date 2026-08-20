@@ -1,13 +1,14 @@
 local Wallrun = {}
-local Debris = game:GetService("Debris")
 local RS = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local RSModules = RS.Modules
 
 local Cast = require(RSModules.Cast)
-local MovementTypes = require(RSModules.Movement.Objects.Movement.Types)
+local ClientTypes = require(RSModules.ClientTypes)
 local FlowManager = require(RSModules.Movement.Ultils.Flow)
 local Sprinting = require(RSModules.Movement.Mechnanics.Sprinting)
+local MovementData = require(RSModules.Movement.Data)
+local SpeedMods = require(RSModules.Movement.Ultils.Speed)
 
 local WeaponAnimations = RS.Animations.Weapons
 
@@ -31,24 +32,37 @@ local function GetCachedTrack(MovementObj, Hum, weapon, animType)
 end
 
 local function WallChecker(char)
-	local HRP = char.HumanoidRootPart
+	local HRP: BasePart = char.HumanoidRootPart
 	if not HRP then
 		return
 	end
 
-	local LeftResult = Cast.Ray({
-		Origin = HRP.Position,
-		Direction = -HRP.CFrame.RightVector,
-		Range = 3,
-		FilterList = { char },
-	})
+	local range = MovementData.Data.WallRunCheckRange
+	local leniency = MovementData.Data.WallRunFacingLeniency
+	local filter = { char, workspace.VFX }
 
-	local RightResult = Cast.Ray({
-		Origin = HRP.Position,
-		Direction = HRP.CFrame.RightVector,
-		Range = 3,
-		FilterList = { char },
-	})
+	local lookVector  = HRP.CFrame.LookVector
+	local rightVector = HRP.CFrame.RightVector
+
+	local function CastDir(origin,direction)
+		return Cast.Ray({
+			Origin = origin,
+			Direction = direction,
+			Range = range,
+			FilterList = filter
+		})
+	end
+
+	local forwardClearance = CastDir(HRP.Position, lookVector)
+	local forwardPush = forwardClearance and math.min(range * 0.5, forwardClearance.Distance * 0.5) or range * 0.5
+	local forwardOrigin = HRP.Position + lookVector * forwardPush
+
+
+	
+
+	-- Perpendicular side rays: exact facing, highest priority.
+	local LeftResult = CastDir(HRP.Position, -rightVector)
+	local RightResult = CastDir(HRP.Position, rightVector)
 
 	if LeftResult and math.abs(LeftResult.Normal.Y) < 0.2 then
 		return LeftResult, -1
@@ -56,10 +70,23 @@ local function WallChecker(char)
 		return RightResult, 1
 	end
 
+	-- Gentle facing leniency: forward-leaning diagonal per side, so the player
+	-- can stick slightly before being fully perpendicular to the wall.
+	local LeftLean = CastDir(forwardOrigin, (-rightVector + lookVector * leniency).Unit)
+	local RightLean = CastDir(forwardOrigin, (rightVector + lookVector * leniency).Unit)
+
+	local facingMax = MovementData.Data.WallRunFacingMax
+
+	if LeftLean and math.abs(LeftLean.Normal.Y) < 0.2 and math.abs(lookVector:Dot(LeftLean.Normal)) < facingMax then
+		return LeftLean, -1
+	elseif RightLean and math.abs(RightLean.Normal.Y) < 0.2 and math.abs(lookVector:Dot(RightLean.Normal)) < facingMax then
+		return RightLean, 1
+	end
+
 	return nil
 end
 
-local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: RaycastResult, side)
+local function StartWallRun(MovementObj: ClientTypes.MovementObj, hit: RaycastResult, side)
 	if not MovementObj or not MovementObj.char or not MovementObj.identifer then
 		return
 	end
@@ -67,7 +94,7 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 	local CurrentWeapon = char:GetAttribute("CurrentWeapon")
 	local Hum = char.Humanoid
 	local HRP: Part = char.HumanoidRootPart
-	local WallrunSpeed = 60
+	local WallrunSpeed = SpeedMods.GetMovementSpeed(char, "WallRunSpeed", "WallRun")
 
 	if not Hum or not HRP then
 		return
@@ -78,9 +105,9 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 	end
 
 	if MovementObj.IsActing.IsSprinting then
-		WallrunSpeed = 80
+		WallrunSpeed = SpeedMods.GetMovementSpeed(char, "WallRunSprintSpeed", "WallRun")
 	elseif MovementObj.IsActing.IsEXSprinting then
-		WallrunSpeed = 85
+		WallrunSpeed = SpeedMods.GetMovementSpeed(char, "WallRunExSprintSpeed", "WallRun")
 	end
 
 	local Sprintflag = MovementObj.IsActing.IsSprinting or MovementObj.IsActing.IsEXSprinting
@@ -132,6 +159,14 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 	char:SetAttribute("IsWallRunning", true) -- for server to tell clients
 	MovementObj.IsActing.WallRunning = true -- for the client to know they are wallrunning
 
+	if not RunService:IsServer() then
+		MovementObj:ServerRequest("WallRunStart")
+	end
+
+	if MovementObj.InfoTable.DoubleJump then
+		MovementObj.InfoTable.DoubleJump.Used = 0
+	end
+
 	local Att = HRP:FindFirstChild("WallRunAttachment")
 
 	if not Att then
@@ -164,7 +199,7 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 		L_anim:Play()
 	end
 
-	local duration = 20
+	local duration = MovementData.Data.WallRunDuration
 	local elapsed = 0
 
 	local function StopWallRun(reason)
@@ -177,7 +212,7 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 		WallrunCooldowns[MovementObj] = tick()
 
 		if reason ~= "Jump" then
-			HRP.AssemblyLinearVelocity += Normal * 15
+			HRP.AssemblyLinearVelocity += Normal * MovementData.Data.WallRunEntryPush
 		end
 
 		vel.Enabled = false
@@ -190,6 +225,10 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 		Hum.AutoRotate = true
 		MovementObj.IsActing.WallRunning = false
 		char:SetAttribute("IsWallRunning", false)
+
+		if not RunService:IsServer() then
+			MovementObj:ServerRequest("WallRunEnd")
+		end
 
 		R_anim:Stop()
 		L_anim:Stop()
@@ -229,8 +268,8 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 		local check = Cast.Ray({
 			Origin = HRP.Position,
 			Direction = -Normal,
-			Range = 5,
-			FilterList = { char },
+			Range = MovementData.Data.WallRunContactRange,
+			FilterList = { char, workspace.VFX },
 		})
 
 		if not check then
@@ -246,7 +285,7 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 				local checkv2 = Cast.Ray({
 					Origin = HRP.Position,
 					Direction = -frozenNormal,
-					Range = 5,
+					Range = MovementData.Data.WallRunContactRange,
 					FilterList = { char },
 				})
 
@@ -257,9 +296,32 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 			return
 		end
 
-		local gforce = Vector3.new(0, -workspace.Gravity * 0.5, 0)
+		-- FOLLOW WALL CURVATURE: re-derive the wall direction from the fresh hit
+		local freshNormal = check.Normal.Unit
+		if math.abs(freshNormal.Y) > 0.2 then
+			StopWallRun()
+			return
+		end
 
-		vel.VectorVelocity = WallDir * WallrunSpeed + gforce * dt + entryvel * 0.15
+		local freshWallDir = freshNormal:Cross(Vector3.new(0, 1, 0)).Unit
+		if freshWallDir:Dot(HRP.CFrame.LookVector) < 0 then
+			freshWallDir = -freshWallDir
+		end
+
+		-- Drop the run on corners sharper than the allowed curve
+		local angleChange = math.deg(math.acos(math.clamp(WallDir:Dot(freshWallDir), -1, 1)))
+		if angleChange > MovementData.Data.WallRunCurveMaxAngle then
+			StopWallRun()
+			return
+		end
+
+		local steerAlpha = 1 - math.exp(-MovementData.Data.WallRunCurveSteerRate * dt)
+		WallDir = WallDir:Lerp(freshWallDir, steerAlpha).Unit
+		Normal = Normal:Lerp(freshNormal, steerAlpha).Unit
+
+		local gforce = Vector3.new(0, -workspace.Gravity * MovementData.Data.WallRunGravityScale, 0)
+
+		vel.VectorVelocity = WallDir * WallrunSpeed + gforce * dt + entryvel * MovementData.Data.WallRunCarry
 		algin.CFrame = CFrame.lookAt(HRP.Position, HRP.Position + WallDir, Vector3.new(0, 1, 0))
 		MovementObj.InfoTable.Wallrun.Stop = StopWallRun
 		MovementObj.InfoTable.Wallrun.Side = side
@@ -267,7 +329,7 @@ local function StartWallRun(MovementObj: MovementTypes.MovementObj, hit: Raycast
 	end)
 end
 
-function Wallrun.Start(MovementObj: MovementTypes.MovementObj)
+function Wallrun.Start(MovementObj: ClientTypes.MovementObj)
 	local char = MovementObj.char
 	if not char then
 		return
@@ -290,7 +352,7 @@ function Wallrun.Start(MovementObj: MovementTypes.MovementObj)
 		return
 	end
 
-	if WallrunCooldowns[MovementObj] and tick() - WallrunCooldowns[MovementObj] < 0.2 then
+	if WallrunCooldowns[MovementObj] and tick() - WallrunCooldowns[MovementObj] < MovementData.Data.WallRunCooldown then
 		return
 	end
 
@@ -304,7 +366,7 @@ function Wallrun.Start(MovementObj: MovementTypes.MovementObj)
 	StartWallRun(MovementObj, hit, side)
 end
 
-function Wallrun.Jump(MovementObj: MovementTypes.MovementObj)
+function Wallrun.Jump(MovementObj: ClientTypes.MovementObj)
 	if not MovementObj or not MovementObj.IsActing.WallRunning then
 		return
 	end
@@ -317,8 +379,8 @@ function Wallrun.Jump(MovementObj: MovementTypes.MovementObj)
 		return
 	end
 
-	MovementObj.InfoTable.Wallrun.Stop("Jump")
 	MovementObj:ServerRequest("WallRunJump")
+	MovementObj.InfoTable.Wallrun.Stop("Jump")
 
 	FlowManager.OnMechanicJump(MovementObj, "WallRunJump")
 
@@ -331,11 +393,45 @@ function Wallrun.Jump(MovementObj: MovementTypes.MovementObj)
 		return
 	end
 
-	local Jumppower = 55
-	local uppower = Jumppower * 1.5
-	local forwardPower = Jumppower * 1.5
+	local D = MovementData.Data
 
-	local jumpVect = (Normal * (Jumppower + 2)) + (HRP.CFrame.LookVector * forwardPower) + Vector3.new(0, uppower, 0)
+	local WallDir = Normal:Cross(Vector3.new(0, 1, 0)).Unit
+	if WallDir:Dot(HRP.CFrame.LookVector) < 0 then
+		WallDir = -WallDir
+	end
+
+	local uppower = SpeedMods.GetJumpSpeed(char, "WallJumpUp")
+	local forwardPower = SpeedMods.GetJumpSpeed(char, "WallJumpForward")
+
+	-- Preserve horizontal velocity and layer the launch on top of it
+	local flatVel = Vector3.new(HRP.AssemblyLinearVelocity.X, 0, HRP.AssemblyLinearVelocity.Z)
+
+	-- Camera-only launch with a hint of wall direction so it never dives into the wall
+	local launchDir = WallDir
+	local cam = workspace.CurrentCamera
+	if not RunService:IsServer() and cam then
+		local camLook = cam.CFrame.LookVector
+		local camFlat = Vector3.new(camLook.X, 0, camLook.Z)
+		if camFlat.Magnitude > 0.1 then
+			launchDir = camFlat.Unit:Lerp(WallDir, D.WallJumpWallDirBlend).Unit
+		end
+	end
+
+	-- Input decides whether we hop to the next wall (pushing away from it) or
+	-- just launch forward. S and D intentionally do nothing lateral.
+	local inputDir = Vector3.new(Hum.MoveDirection.X, 0, Hum.MoveDirection.Z)
+	local hop = Vector3.zero
+	local forwardScale = 1
+	if inputDir.Magnitude > 0.1 then
+		inputDir = inputDir.Unit
+		if inputDir:Dot(Normal) > 0.1 then
+			hop = Normal * SpeedMods.GetJumpSpeed(char, "WallJumpHop")
+			forwardScale = 0.8
+		end
+	end
+
+	local boostFlat = flatVel + launchDir * (forwardPower * forwardScale) + hop
+	local launchVect = boostFlat + Vector3.new(0, uppower, 0)
 
 	if side == 1 then
 		R_animJump:Play(0)
@@ -348,11 +444,17 @@ function Wallrun.Jump(MovementObj: MovementTypes.MovementObj)
 	local lv = Instance.new("LinearVelocity")
 	lv.Attachment0 = attachment
 	lv.MaxForce = math.huge
-	lv.VectorVelocity = jumpVect
+	lv.VectorVelocity = launchVect
 	lv.RelativeTo = Enum.ActuatorRelativeTo.World
 	lv.Parent = HRP
 
-	Debris:AddItem(lv, 0.15)
+	local boostDuration = D.WallJumpBoostDuration
+
+	task.delay(boostDuration, function()
+		if lv and lv.Parent then
+			lv:Destroy()
+		end
+	end)
 end
 
 return Wallrun

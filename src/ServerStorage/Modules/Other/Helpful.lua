@@ -1,5 +1,4 @@
 local module = {}
-local StarterPlayer = game:GetService("StarterPlayer")
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 local SS = game:GetService("ServerStorage")
@@ -7,10 +6,13 @@ local SSModules = SS.Modules
 local Events = RS.Events
 local StaminaEvent = Events.Stamina
 
+local MovementData = require(RS.Modules.Movement.Data)
+
 local WeaponsModels = RS.Models.Weapons
 
 local BlockingModule = require(script.Parent.Parent.BlockModule)
 local Combat_Data = require(SSModules.Combat.Data.CombatData)
+local SkillInfo = require(SSModules.Dictionaries.SkillInfo)
 
 -- Tables
 local Welds = Combat_Data.Welds
@@ -30,6 +32,8 @@ local MaxCritRate = 0.45 -- Max Crit Rate % given by DEX Points
 local MaxdownTime = 22  
 local Reduction_Range = 2
 local K_Time =  15 -- "the half life constant"
+
+local FlowBonuses = {}
 
 function module.DamageDealer(char :Model, damage)
 	local hum = char:FindFirstChildOfClass("Humanoid") ::Humanoid
@@ -60,6 +64,7 @@ function module.ChangeWeapon(plr, char, torso)
 	char:SetAttribute("Attacking", false)
 	char:SetAttribute("iframes", false)
 	char:SetAttribute("IsBlocking", false)
+	char:SetAttribute("HoldingBlock", false)
 	char:SetAttribute("Mode1", false)
 	char:SetAttribute("Mode2", false)
 	char:SetAttribute("Parrying", false)
@@ -137,22 +142,22 @@ end
 
 function module.ResetMobility(char)
 	local hum = char.Humanoid
-	if char:GetAttribute("IsLow") and char:GetAttribute("InCombat") then
-		if char:GetAttribute("Sprinting") then
-			hum.WalkSpeed = StarterPlayer.CharacterWalkSpeed * 1.25
-		else
-			hum.WalkSpeed = StarterPlayer.CharacterWalkSpeed / 2
-			hum.JumpHeight = StarterPlayer.CharacterJumpHeight / 2
-		end
-	else
-		if char:GetAttribute("Sprinting") then
-			hum.WalkSpeed = StarterPlayer.CharacterWalkSpeed * 2
-			hum.JumpHeight = StarterPlayer.CharacterJumpHeight
-		else
-			hum.WalkSpeed = StarterPlayer.CharacterWalkSpeed
-			hum.JumpHeight = StarterPlayer.CharacterJumpHeight
-		end
-	end
+	if not hum then return end
+
+	-- AGL + per-action speed multiplier + live flow bonus (client-synced for
+	-- players, read from the server Flow object for NPCs).
+	local SpeedMods = require(RS.Modules.Movement.Ultils.Speed)
+	local flowBonus = module.GetCharFlowBonus(char)
+
+	-- IsLow+InCombat penalty is centralized in SpeedMods.GetIsLowFactor (x0.65 on
+	-- every speed getter), so ResetMobility applies no local penalty and no longer
+	-- swaps to low sprint keys -- that would double-stack the reduction.
+	local sprinting = char:GetAttribute("Sprinting")
+	local sprintKey = sprinting and "SprintSpeed" or "WalkSpeed"
+	local sprintAction = sprinting and "Sprint" or "Walk"
+
+	hum.WalkSpeed = (SpeedMods.GetMovementSpeed(char, sprintKey, sprintAction) or hum.WalkSpeed) * flowBonus
+	hum.JumpHeight = (SpeedMods.GetJumpSpeed(char, "JumpHeight") or hum.JumpHeight) * flowBonus
 end
 
 function module.CheckForStatus(
@@ -174,15 +179,24 @@ function module.CheckForStatus(
     local Result = "HitLanded"
 
     if checkForHyprParry and not stop then
-        if eChar:GetAttribute("HyprParry") and module.CheckInFront(char, eChar) then
+        if eChar:GetAttribute("HyprParry") then
             Result = BlockingModule.HyprParrying(char, eChar, hitPos, npc)
             stop = true
         end
     end
 
     if CheckForParrying and not stop then
-        if eChar:GetAttribute("Parrying") and module.CheckInFront(char, eChar) then
+        if eChar:GetAttribute("Parrying") then
             Result = BlockingModule.Parrying(char, eChar, hitPos, npc)
+            stop = true
+        end
+    end
+
+    if CheckForParrying and not stop then
+        local DefenderIdentifier = Players:GetPlayerFromCharacter(eChar) or npc
+        local APWindow = DefenderIdentifier and Combat_Data.APFrames[DefenderIdentifier]
+        if APWindow and tick() < APWindow then
+            Result = BlockingModule.APParrying(char, eChar, hitPos, npc)
             stop = true
         end
     end
@@ -207,7 +221,7 @@ end
 
 
 
-function module.CheckForAttributes(char, attack, swing, stun, ragdoll, equipped, blocking, Dodging, Sprinting)
+function module.CheckForAttributes(char, attack, swing, stun, ragdoll, equipped, blocking, Dodging, Sprinting, EXSprint)
 	local attacking = char:GetAttribute("Attacking")
 	local swinging = char:GetAttribute("Swing")
 	local stunned = char:GetAttribute("Stunned")
@@ -216,6 +230,7 @@ function module.CheckForAttributes(char, attack, swing, stun, ragdoll, equipped,
 	local isBlocking = char:GetAttribute("IsBlocking")
 	local isDodging = char:GetAttribute("Dodging")
 	local isSprinting = char:GetAttribute("Sprinting")
+	local isEXSprinting = char:GetAttribute("IsEXSprinting")
 
 	local stop = false
 
@@ -241,6 +256,9 @@ function module.CheckForAttributes(char, attack, swing, stun, ragdoll, equipped,
 		stop = true
 	end
 	if Sprinting and isSprinting then
+		stop = true
+	end
+	if EXSprint and isEXSprinting then
 		stop = true
 	end
 	return stop
@@ -274,7 +292,7 @@ function module.Ragdoll(char, ragdollTime)
 		char:SetAttribute("Iframes", false)
 	end)
 end
-function module.ManageStamina(char, action)
+function module.ManageStamina(char, action, skillName)
     local Stamina = char:GetAttribute("Stamina")
     local Fail = false
     local plr = Players:GetPlayerFromCharacter(char)
@@ -306,14 +324,47 @@ function module.ManageStamina(char, action)
         end
     end
 
-    if action == "Climb" then
-        if Stamina >= 10 then
+    if action == "Skill" then
+        local skillData = skillName and SkillInfo.getSkill(skillName)
+        local cost = skillData and skillData.Costs and skillData.Costs.Stamina or 0
+
+        if Stamina >= cost then
             Fail = false
-            char:SetAttribute("Stamina", (Stamina - 10))
+            char:SetAttribute("Stamina", (Stamina - cost))
+            return Fail
+        else
+            Fail = true
+            if plr then
+                StaminaEvent:FireClient(plr, 10)
+            end
+            return Fail
+        end
+    end
+
+    if action == "Climb" then
+        local cost = MovementData.Data.ClimbStaminaCost
+        if Stamina >= cost then
+            Fail = false
+            char:SetAttribute("Stamina", (Stamina - cost))
             return Fail
         else
             print(char, "Did not have enough stamina to climb")
             Fail = true
+            return Fail
+        end
+    end
+
+    if action == "DoubleJump" then
+        local cost = MovementData.Data.DoubleJumpStaminaCost
+        if Stamina >= cost then
+            Fail = false
+            char:SetAttribute("Stamina", (Stamina - cost))
+            return Fail
+        else
+            Fail = true
+            if plr then
+                StaminaEvent:FireClient(plr, 10)
+            end
             return Fail
         end
     end
@@ -357,5 +408,36 @@ end
 function module.ManageMana(char, Skill)
 	-- This is for when I start the spell and skill system fully
 end
+
+-- Flow bonus sync (client pushes via MovementEvent "FlowUpdate", stored here)
+function module.SetFlowBonus(identifier, value)
+	FlowBonuses[identifier] = value
+end
+
+function module.GetFlowBonus(identifier)
+	return FlowBonuses[identifier]
+end
+
+-- Resolve the current flow bonus for a character.
+-- Players use the client-synced value; NPCs read their (server-authoritative) Flow object.
+-- Lazy-requires npc to avoid the Helpful <-> npc require cycle.
+function module.GetCharFlowBonus(char)
+	local plr = Players:GetPlayerFromCharacter(char)
+	if plr then
+		return FlowBonuses[plr] or 1
+	end
+
+	local npcModule = require(SSModules.Objects.npc)
+	local npcObj = npcModule and npcModule.GetNpcFromCharacter(char)
+	if npcObj and npcObj.MovementObj and npcObj.MovementObj.Flow then
+		return npcObj.MovementObj.Flow.FlowBonus or 1
+	end
+
+	return 1
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	FlowBonuses[player] = nil
+end)
 
 return module

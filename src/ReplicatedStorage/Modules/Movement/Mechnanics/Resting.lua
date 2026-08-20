@@ -3,13 +3,13 @@ local RS = game:GetService("ReplicatedStorage")
 local SS = game:GetService("ServerStorage")
 local RSModules = RS.Modules
 local SSModules = SS.Modules
-local MovementTypes = require(RSModules.Movement.Objects.Movement.Types)
+local ClientTypes = require(RSModules.ClientTypes)
 local WeaponAnimations = RS.Animations.Weapons
 
 local Restcooldowns = {}
 
 
-local function StartResting(MovementObj:MovementTypes.MovementObj)
+local function StartResting(MovementObj:ClientTypes.MovementObj)
     local char = MovementObj.char
     local currentWeapon = char:GetAttribute("CurrentWeapon")
     local hum = char.Humanoid
@@ -36,7 +36,7 @@ local function StartResting(MovementObj:MovementTypes.MovementObj)
     MovementObj.InfoTable.Resting.Stop = RestStop
 end
 
-function RestingModule.Start(MovementObj:MovementTypes.MovementObj)
+function RestingModule.Start(MovementObj:ClientTypes.MovementObj)
     if Restcooldowns[MovementObj] and tick() - Restcooldowns[MovementObj] < 0.05 then return end  -- just a debounce not an actual cooldown
     if MovementObj.States.IsResting then return end 
     StartResting(MovementObj)

@@ -6,17 +6,18 @@ local RunService = game:GetService("RunService")
 local TS = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 
-local MovemenTypes = require(RSModules.Movement.Objects.Movement.Types)
+local ClientTypes = require(RSModules.ClientTypes)
 local Cast = require(RSModules.Cast)
+local MovementData = require(RSModules.Movement.Data)
+local SpeedMods = require(RSModules.Movement.Ultils.Speed)
 local cam = game.Workspace.CurrentCamera
 
 local WeaponAnimationFolder = RS.Animations.Weapons
 
 local Config = {
-	Cooldown = 0.1,
-	Speed = 11,
-	DefaultFov = 70,
-	CrouchFov = 65,
+	Cooldown = MovementData.Data.CrouchCooldown,
+	DefaultFov = MovementData.Data.BaseFov,
+	CrouchFov = MovementData.Data.CrouchFov,
 	CrouchFovTime = 0.5,
 	ResetFovTime = 1,
 	CamOffset = -0.5,
@@ -32,7 +33,7 @@ local CrouchDebounce = {}
 local OrginalMaxCam = {}
 local OrginalMinCam = {}
 
-local function StopChecker(MovementObj: MovemenTypes.MovementObj)
+local function StopChecker(MovementObj: ClientTypes.MovementObj)
 	local stop = false
 
 	if MovementObj.IsActing.Climbing then
@@ -51,7 +52,7 @@ local function StopChecker(MovementObj: MovemenTypes.MovementObj)
 	return stop
 end
 
-local function RunChecker(MovementObj: MovemenTypes.MovementObj)
+local function RunChecker(MovementObj: ClientTypes.MovementObj)
 	local flag = false
 	local Variant = nil
 	if MovementObj.IsActing.IsEXSprinting then
@@ -84,7 +85,7 @@ local function HeadChecker(char)
 	return Result ~= nil
 end
 
-function CrouchModule.StartCrouch(MovementObj: MovemenTypes.MovementObj)
+function CrouchModule.StartCrouch(MovementObj: ClientTypes.MovementObj)
 	if StopChecker(MovementObj) then
 		return
 	end
@@ -109,7 +110,7 @@ function CrouchModule.StartCrouch(MovementObj: MovemenTypes.MovementObj)
 	CrouchAnim:Play()
 	MovementObj:ClearWalkAnims()
 	MovementObj:ServerRequest("CrouchStart")
-	hum.WalkSpeed = Config.Speed
+	hum.WalkSpeed = SpeedMods.GetMovementSpeed(char, "CrouchSpeed", "Crouch")
 
 	local playerflag = MovementObj.identifer
 	local plr = nil
@@ -151,7 +152,7 @@ function CrouchModule.StartCrouch(MovementObj: MovemenTypes.MovementObj)
 		CrouchAnim:Stop()
 		MovementObj:UpdateWalkTracks()
 		MovementObj:ServerRequest("CrouchEnd")
-		hum.WalkSpeed = game:GetService("StarterPlayer").CharacterWalkSpeed
+		hum.WalkSpeed = SpeedMods.GetMovementSpeed(char, "WalkSpeed", "Walk")
 		hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
 
 		local playerflag = MovementObj.identifer
@@ -242,11 +243,11 @@ function CrouchModule.StartCrouch(MovementObj: MovemenTypes.MovementObj)
 	end)
 end
 
-function CrouchModule.StartSlide(MovementObj: MovemenTypes.MovementObj)
+function CrouchModule.StartSlide(MovementObj: ClientTypes.MovementObj)
 	--- Once i figure out the slide mechanics then i would add it there
 end
 
-function CrouchModule.Start(MovementObj: MovemenTypes.MovementObj)
+function CrouchModule.Start(MovementObj: ClientTypes.MovementObj)
 	if MovementObj.States.IsCrouching then
 		MovementObj.InfoTable.Crouch.Stop()
 		return

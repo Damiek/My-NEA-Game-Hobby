@@ -1,165 +1,180 @@
+local StarterPlayer = game:GetService("StarterPlayer")
 local Data = {}
-
---
-
-
 
 export type DataSet = {
 	--// General
 	WalkSpeed: number,
+	JumpHeight: number,
 	JumpPower: number,
-	MaxTilt: number,
-	DoubleJumps: number,
-
-	--// Stamina
-
-
-	--// FOV
 	BaseFov: number,
-	SprintFov: number,
+	DoubleJumps: number,
 
 	--// Sprint
 	SprintSpeed: number,
-	SprintJumpPower: number,
+	ExSprintSpeed: number,
+	ExSprintFallbackSpeed: number,
+	SprintFov: number,
+	ExSprintFov: number,
 
-	--// Dash
-	DashDuration: number,
-	DashSpeed: number,
-	SideDashCooldown: number,
-	BackDashCooldown: number,
-	FrontDashCooldown: number,
-	SideDashDuration: number,
-	FrontDashDuration: number,
-	BackDashDuration: number,
-	SideDashSpeed: number,
-	FrontDashSpeed: number,
-	BackDashSpeed: number,
+	--// Dodge
+	DodgeSpeed: number,
+	MaxDodgeSpeed: number,
+	DodgeDuration: number,
+	DodgeCooldown: number,
+	DodgeCancelCooldown: number,
+	AirDodgeMultiplier: number,
+	AirDodgeBonusMultiplier: number,
+	AirDodgeBonusWindow: number,
+	AirDodgeCamUpAngle: number,
+	DodgeMomentumRetention:number,
+
+	--// Double Jump
+	DoubleJumpPower: number,
+	DoubleJumpForward: number,
+	DoubleJumpStaminaCost: number,
 
 	--// Vault
 	VaultBoost: number,
+	VaultUp: number,
 	VaultDuration: number,
-
-	--// Slide
-	SlideDuration: number,
-	SlideSpeed: number,
-	SlideCooldown: number,
-	SlideCancelSpeed: number,
-	SlideCancelDuration: number,
+	LedgeDistance: number,
 
 	--// Crouch
 	CrouchSpeed: number,
 	CrouchCooldown: number,
-	CrouchHipHeight: number,
-
-	--// Crawl
-	CrawlSpeed: number,
-	CrawlCooldown: number,
-	CrawlHipHeight: number,
+	CrouchFov: number,
 
 	--// Climb
 	ClimbSpeed: number,
+	ClimbMaxHeight: number,
+	ClimbDetectionRange: number,
 	ClimbStaminaDrain: number,
 	ClimbStaminaRegen: number,
-	ClimbDetectionRange: number,
+	MaxClimbsPerSet:number,
+	ClimbStaminaCost:number,
 
 	--// Wall Run
 	WallRunSpeed: number,
+	WallRunSprintSpeed: number,
+	WallRunExSprintSpeed: number,
 	WallRunDuration: number,
+	WallRunCheckRange: number,
+	WallRunFacingLeniency: number,
+	WallRunFacingMax: number,
+	WallRunCamLean: number,
+	WallRunContactRange: number,
+	WallRunCooldown: number,
+	WallRunGravityScale: number,
+	WallRunCarry: number,
+	WallRunEntryPush: number,
 
-	--// Wall Hold
-	WallHoldDuration: number,
-	UpBoost: number,
-	BackBoost: number,
+	--// Wall Jump
+	WallJumpForward: number,
+	WallJumpUp: number,
+	WallJumpHop: number,
+	WallJumpBoostDuration: number,
+	WallJumpWallDirBlend: number,
 
-	--// Swing
-	DetectSwingRange: number,
-	SwingDuration: number,
-	SwingCooldown: number,
-	SwingForwardBoost: number,
-	SwingUpBoost: number,
+	--// Wall Run Curvature
+	WallRunCurveSteerRate: number,
+	WallRunCurveMaxAngle: number,
+
+	--// Fall
+	SafeFallDistance: number,
+	FallDamagePerStud: number,
+	FallReductionEndMax: number,
+	FallReductionCap: number,
+	FallEndStatMax: number,
 }
 
-  
- local DataTable : DataSet = {
-		--// General
-		WalkSpeed = 22,
-		JumpPower = 50,
-		MaxTilt = 15,
-		DoubleJumps = 1,
+local DataTable: DataSet = {
+	--// General
+	WalkSpeed = StarterPlayer.CharacterWalkSpeed,
+	JumpHeight = StarterPlayer.CharacterJumpHeight,
+	JumpPower = 50,
+	BaseFov = 70,
+	DoubleJumps = 2,
 
-		--// Fov
-		BaseFov = 80,
-		SprintFov = 90,
+	--// Sprint
+	SprintSpeed = 32,
+	ExSprintSpeed = 45,
+	ExSprintFallbackSpeed = 64,
+	SprintFov = 80,
+	ExSprintFov = 85,
 
-		--// Sprint
-		SprintSpeed = 40,
-		SprintJumpPower = 45,
+	--// Dodge
+	DodgeSpeed = 75,
+	MaxDodgeSpeed = 120,
+	DodgeDuration = 0.25,
+	DodgeCooldown = 0.55,
+	DodgeCancelCooldown = 0.5,
+	AirDodgeMultiplier = 0.9,
+	AirDodgeBonusMultiplier = 1.5,
+	AirDodgeBonusWindow = 1.0,
+	AirDodgeCamUpAngle = 45,
+	DodgeMomentumRetention = 0.5,
 
-		--// Dash
-		DashDuration = 1.25,
-		DashSpeed = 80,
-		SideDashCooldown = 1,
-		BackDashCooldown = 1.25,
-		FrontDashCooldown = 1.25,
-		SideDashDuration = 0.245,
-		FrontDashDuration = 0.45,
-		BackDashDuration = 0.425,
-		SideDashSpeed = 80,
-		FrontDashSpeed = 80,
-		BackDashSpeed = 60,
+	--// Double Jump
+	DoubleJumpPower = 50,
+	DoubleJumpForward = 45,
+	DoubleJumpStaminaCost = 15,
 
-		--// Vault
-		VaultBoost = 1.5, -- This is strong. Higher the number the more forward force
-		VaultDuration = 0.2,
+	--// Vault
+	VaultBoost = 35,
+	VaultUp = 25,
+	VaultDuration = 0.3,
+	LedgeDistance = 0.4,
 
-		--// Slide
-		SlideDuration = 0.8,
-		SlideSpeed = 80,
-		SlideCooldown = 0.5,
-		SlideCancelSpeed = 45,
-		SlideCancelDuration = 0.3,
-		
-		--// Crouch
-		CrouchSpeed = 10,
-		CrouchCooldown = 0.5,
-		CrouchHipHeight = 0.5, -- We are subtracting from this
-		
-		--// Crawl
-		CrawlSpeed = 5,
-		CrawlCooldown = 0.5,
-		CrawlHipHeight = 0.25,
+	--// Crouch
+	CrouchSpeed = 11,
+	CrouchCooldown = 0.1,
+	CrouchFov = 65,
 
-		--// Climb
-		ClimbSpeed = 20,
-		ClimbStaminaDrain = 1,
-		ClimbStaminaRegen = 1,
-		ClimbDetectionRange = 2,
+	--// Climb
+	ClimbSpeed = 20,
+	ClimbMaxHeight = 40,
+	ClimbDetectionRange = 5,
+	ClimbStaminaDrain = 1,
+	ClimbStaminaRegen = 1,
+	MaxClimbsPerSet = 3,
+	ClimbStaminaCost = 10,
+	
+	
 
-		--// Wall Run
-		WallRunSpeed = 50,
-		WallRunDuration = 20,
-		
-		--// Wall Hold
-		WallHoldDuration = 2.5,
-		UpBoost = 60,
-		BackBoost = 20,
+	--// Wall Run
+	WallRunSpeed = 50,
+	WallRunSprintSpeed = 80,
+	WallRunExSprintSpeed = 85,
+	WallRunDuration = 20,
+	WallRunCheckRange = 4.5,
+	WallRunFacingLeniency = 0.4,
+	WallRunFacingMax = 0.6,
+	WallRunCamLean = 8,
+	WallRunContactRange = 5,
+	WallRunCooldown = 0.2,
+	WallRunGravityScale = 0.5,
+	WallRunCarry = 0.15,
+	WallRunEntryPush = 15,
 
+	--// Wall Jump
+	WallJumpForward = 125,
+	WallJumpUp = 82.5,
+	WallJumpHop = 75,
+	WallJumpBoostDuration = 0.15,
+	WallJumpWallDirBlend = 0.25,
 
-		--// Swing
-		DetectSwingRange = 5,
-		SwingDuration = 0.25,
-		SwingCooldown = 0.4,
-		SwingForwardBoost = 80,
-		SwingUpBoost = 65,
-	}
+	--// Wall Run Curvature
+	WallRunCurveSteerRate = 18,
+	WallRunCurveMaxAngle = 35,
+
+	--// Fall
+	SafeFallDistance = 35,
+	FallDamagePerStud = 5,
+	FallReductionEndMax = 0.5,
+	FallReductionCap = 1.0,
+	FallEndStatMax = 99,
+}
 
 Data.Data = DataTable
-
---
-
-
-
-
---
 
 return Data

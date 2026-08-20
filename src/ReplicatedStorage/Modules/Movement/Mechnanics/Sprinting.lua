@@ -3,17 +3,18 @@ local RS = game:GetService("ReplicatedStorage")
 local TS = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local RSModules = RS.Modules
-local Types = require(RSModules.Movement.Objects.Movement.Types)
+local ClientTypes = require(RSModules.ClientTypes)
 local FlowManager = require(RSModules.Movement.Ultils.Flow)
+local MovementData = require(RSModules.Movement.Data)
 local AnimationsFolder = RSModules.Movement.Objects.Movement.Animations
 
 local Debounce = {}
 local EX_Debounce = {}
 local SprintConns = {}
-local BaseSpeed = game:GetService("StarterPlayer").CharacterWalkSpeed
+local SpeedMods = require(RSModules.Movement.Ultils.Speed)
 local cam = workspace.CurrentCamera
 
-function Sprinting.CanSprint(MovementObj: Types.MovementObj)
+function Sprinting.CanSprint(MovementObj: ClientTypes.MovementObj)
 	local char = MovementObj.char
 	return not (
 		char:GetAttribute("Stunned")
@@ -27,7 +28,7 @@ function Sprinting.CanSprint(MovementObj: Types.MovementObj)
 	)
 end
 
-local function ResetSpeedCheck(MovementObj: Types.MovementObj)
+local function ResetSpeedCheck(MovementObj: ClientTypes.MovementObj)
 	local char = MovementObj.char
 	return not (
 		char:GetAttribute("Stunned")
@@ -39,7 +40,7 @@ local function ResetSpeedCheck(MovementObj: Types.MovementObj)
 	)
 end
 
-local function selectionSprintAnim(MovementObj: Types.MovementObj)
+local function selectionSprintAnim(MovementObj: ClientTypes.MovementObj)
 	local Target = nil
 	local char = MovementObj.char
 	local Hum = char:FindFirstChildOfClass("Humanoid")
@@ -70,7 +71,7 @@ local function selectionSprintAnim(MovementObj: Types.MovementObj)
 	MovementObj.InfoTable.Sprint.SprintAnim:Play(0.25)
 end
 
-function Sprinting.ForceStopAllSprinting(MovementObj: Types.MovementObj)
+function Sprinting.ForceStopAllSprinting(MovementObj: ClientTypes.MovementObj)
 	local char = MovementObj.char
 	local Hum = char:FindFirstChildOfClass("Humanoid")
 
@@ -78,10 +79,10 @@ function Sprinting.ForceStopAllSprinting(MovementObj: Types.MovementObj)
 	MovementObj.IsActing.IsEXSprinting = false
 
 	if Hum and ResetSpeedCheck(MovementObj) then
-		FlowManager.OnSprintStop(MovementObj, BaseSpeed)
+		FlowManager.OnSprintStop(MovementObj, SpeedMods.GetMovementSpeed(char, "WalkSpeed", "Walk"))
 	end
 
-	TS:Create(cam, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { FieldOfView = 70 }):Play()
+	TS:Create(cam, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { FieldOfView = MovementData.Data.BaseFov }):Play()
 
 	if MovementObj.InfoTable.Sprint.SprintAnim then
 		MovementObj.InfoTable.Sprint.SprintAnim:Stop(0.2)
@@ -97,7 +98,7 @@ function Sprinting.ForceStopAllSprinting(MovementObj: Types.MovementObj)
 	MovementObj:UpdateWalkTracks()
 end
 
-function Sprinting.NormalToggle(MovementObj: Types.MovementObj)
+function Sprinting.NormalToggle(MovementObj: ClientTypes.MovementObj)
 	local char = MovementObj.char
 	local Hum = char:FindFirstChildOfClass("Humanoid")
 
@@ -119,11 +120,9 @@ function Sprinting.NormalToggle(MovementObj: Types.MovementObj)
 		MovementObj.IsActing.IsSprinting = true
 		MovementObj:ServerRequest("SprintStart")
 
-		local targetSpeed = BaseSpeed * 2
-
-		if char:GetAttribute("InCombat") and char:GetAttribute("IsLow") then
-			targetSpeed = BaseSpeed * 1.25
-		end
+		-- IsLow+InCombat reduction is centralized in SpeedMods.GetIsLowFactor,
+		-- so the low sprint keys are gone -- the getter applies the factor.
+		local targetSpeed = SpeedMods.GetMovementSpeed(char, "SprintSpeed", "Sprint")
 		-- FLOW ENGAGEMENT
 		FlowManager.OnSprintStart(MovementObj, targetSpeed, false)
 		if MovementObj.Flow then
@@ -132,7 +131,7 @@ function Sprinting.NormalToggle(MovementObj: Types.MovementObj)
 
 		Hum.WalkSpeed = targetSpeed
 
-		TS:Create(cam, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { FieldOfView = 80 })
+		TS:Create(cam, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { FieldOfView = MovementData.Data.SprintFov })
 			:Play()
 		selectionSprintAnim(MovementObj)
 
@@ -153,7 +152,7 @@ function Sprinting.NormalToggle(MovementObj: Types.MovementObj)
 	end
 end
 
-function Sprinting.OnCharStateChanged(MovementObj: Types.MovementObj)
+function Sprinting.OnCharStateChanged(MovementObj: ClientTypes.MovementObj)
 	local char = MovementObj.char
 	local HRP = char:FindFirstChild("HumanoidRootPart")
 
@@ -168,10 +167,10 @@ function Sprinting.OnCharStateChanged(MovementObj: Types.MovementObj)
 
 			local Hum = char:FindFirstChildOfClass("Humanoid")
 			if Hum and ResetSpeedCheck(MovementObj) then
-				FlowManager.OnSprintStop(MovementObj, BaseSpeed)
+				FlowManager.OnSprintStop(MovementObj, SpeedMods.GetMovementSpeed(char, "WalkSpeed", "Walk"))
 			end
 
-			TS:Create(cam, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { FieldOfView = 70 })
+			TS:Create(cam, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { FieldOfView = MovementData.Data.BaseFov })
 				:Play()
 
 			if MovementObj.InfoTable.Sprint.SprintAnim then
@@ -192,7 +191,7 @@ function Sprinting.OnCharStateChanged(MovementObj: Types.MovementObj)
 	end
 end
 
-function Sprinting.ExToggle(MovementObj: Types.MovementObj)
+function Sprinting.ExToggle(MovementObj: ClientTypes.MovementObj)
 	local char = MovementObj.char
 	local Hum = char:FindFirstChildOfClass("Humanoid")
 
@@ -206,11 +205,7 @@ function Sprinting.ExToggle(MovementObj: Types.MovementObj)
 		MovementObj.IsActing.IsEXSprinting = false
 		MovementObj:ServerRequest("ExSprintEnd")
 
-		local targetSpeed = BaseSpeed * 4
-
-		if char:GetAttribute("InCombat") and char:GetAttribute("IsLow") then
-			targetSpeed = BaseSpeed * 2.25
-		end
+		local targetSpeed = SpeedMods.GetMovementSpeed(char, "ExSprintFallbackSpeed", "Sprint")
 
 		-- FLOW ENGAGEMENT: Update flow target back down to normal sprint specs
 		FlowManager.OnSprintStart(MovementObj, targetSpeed, false)
@@ -219,7 +214,7 @@ function Sprinting.ExToggle(MovementObj: Types.MovementObj)
 		end
 
 		selectionSprintAnim(MovementObj)
-		TS:Create(cam, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { FieldOfView = 80 })
+		TS:Create(cam, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { FieldOfView = MovementData.Data.SprintFov })
 			:Play()
 
 		task.wait(0.1)
@@ -233,8 +228,7 @@ function Sprinting.ExToggle(MovementObj: Types.MovementObj)
 
 		MovementObj.IsActing.IsEXSprinting = true
 
-		local targetSpeed = (char:GetAttribute("InCombat") and char:GetAttribute("IsLow")) and (BaseSpeed * 1.5)
-			or (BaseSpeed * 2.8)
+		local targetSpeed = SpeedMods.GetMovementSpeed(char, "ExSprintSpeed", "Sprint")
 
 		-- FLOW ENGAGEMENT FIXED: Explicitly alert the Flow engine of your upgraded speed target!
 		FlowManager.OnSprintStart(MovementObj, targetSpeed, true)
@@ -244,7 +238,7 @@ function Sprinting.ExToggle(MovementObj: Types.MovementObj)
 
 		Hum.WalkSpeed = targetSpeed
 
-		TS:Create(cam, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { FieldOfView = 90 })
+		TS:Create(cam, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { FieldOfView = MovementData.Data.ExSprintFov })
 			:Play()
 		selectionSprintAnim(MovementObj)
 

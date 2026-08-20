@@ -1,9 +1,9 @@
 local RS = game:GetService("ReplicatedStorage")
-local StarterPlayer = game:GetService("StarterPlayer")
 
 local FlowManager = require(RS.Modules.Movement.Ultils.Flow)
 local proxy = require(RS.Modules.Movement.Ultils.Proxy)
 local Signal = require(RS.Modules.Packages.Signal) 
+local MovementData = require(RS.Modules.Movement.Data)
 
 local Events = RS.Events
 
@@ -22,10 +22,18 @@ local Tilt_TOP_HIDDEN_LEFT = UDim2.new(-1.325, 0, -2, 0)
 local Tilt_BOTTOM_HIDDEN_LEFT = UDim2.new(-1.325, 0, 2, 0)
 
 local Utils = require(script.Utils)
-local Type = require(script.Types)
+local Type = require(RS.Modules.ClientTypes)
 
 local objTable = {} -- This stores the movementobjs
-local DefualtSpeed = StarterPlayer.CharacterWalkSpeed
+local SpeedMods = require(RS.Modules.Movement.Ultils.Speed)
+
+local function BaseWalkSpeed(MovementObj)
+	local baseSpeed = MovementData.Data.WalkSpeed
+	if MovementObj and MovementObj.char then
+		baseSpeed = SpeedMods.GetMovementSpeed(MovementObj.char, "WalkSpeed", "Walk")
+	end
+	return baseSpeed
+end
 
 local function Ui_init(movementObJ: Type.MovementObj)
 	local plr = movementObJ.identifer
@@ -60,9 +68,9 @@ end
 
 local function StartFlow(MovementObj)
 	local rawFlow = {
-		BaseSpeed = DefualtSpeed,
-		CurrentSpeed = DefualtSpeed,
-		TargetSpeed = DefualtSpeed,
+		BaseSpeed = BaseWalkSpeed(MovementObj),
+		CurrentSpeed = BaseWalkSpeed(MovementObj),
+		TargetSpeed = BaseWalkSpeed(MovementObj),
 		WasSprinting = false,
 		SprintIntentTime = 0,
 		LastMechanic = nil,
@@ -70,7 +78,7 @@ local function StartFlow(MovementObj)
 		LastAirVelocity = Vector3.zero,
 		EntryVelocity = Vector3.zero,
 		Momentum = 0,
-		MaxMomentum = 100,
+		MaxMomentum = SpeedMods.GetMaxMomentum(MovementObj.char),
 		FlowBonus = 1.0,
 		ChainCount = 0,
 		LastChainTime = 0,
@@ -120,6 +128,14 @@ function Movement.new(identifer): Type.MovementObj
 					Stop = "",
 				},
 
+				DoubleJump = {
+					Used = 0,
+					LastTime = 0,
+					-- Declarable free-jump pool: talents write this to grant
+					-- extra free air jumps. Defaults to the Data.lua value.
+					FreeJumps = MovementData.Data.DoubleJumps,
+				},
+
 				Dodge = {
 					Dir = Vector3.zero,
 					Type = "",
@@ -128,6 +144,9 @@ function Movement.new(identifer): Type.MovementObj
 				},
 
 				Climb = {
+					FreeClimbs = MovementData.Data.MaxClimbsPerSet,
+					Used = 0,
+					LastTime =0,
 					Stop = function() end,
 				},
 
@@ -194,6 +213,7 @@ function Movement.new(identifer): Type.MovementObj
 	end
 
 	self.IsReady = true
+
 	return self
 end
 
@@ -372,15 +392,21 @@ function Movement:ClearWalkAnims()
 	end
 end
 
-function Movement:ServerRequest(action)
+function Movement:ServerRequest(action,...)
 	if action == "CrouchStart" then
 		MovementEvent:FireServer(action)
 	end
 	if action == "CrouchEnd" then
 		MovementEvent:FireServer(action)
 	end
-	if action == "Dodge" then
+	if action == "SprintStart" then
 		MovementEvent:FireServer(action)
+	end
+	if action == "SprintEnd" then
+		MovementEvent:FireServer(action)
+	end
+	if action == "Dodge" then
+		MovementEvent:FireServer(action,...)
 	end
 	if action == "DodgeCancel" then
 		MovementEvent:FireServer(action)
@@ -391,13 +417,25 @@ function Movement:ServerRequest(action)
 	if action == "ExSprintEnd" then
 		MovementEvent:FireServer(action)
 	end
+	if action == "WallRunStart" then
+		MovementEvent:FireServer(action)
+	end
+	if action == "WallRunEnd" then
+		MovementEvent:FireServer(action)
+	end
 	if action == "WallRunJump" then
+		MovementEvent:FireServer(action)
+	end
+	if action == "DoubleJump" then
+		MovementEvent:FireServer(action)
+	end
+
+	if action == "Climb" then
 		MovementEvent:FireServer(action)
 	end
 end
 
-function Movement:StateChecker(self: Type.MovementObj, action, Ignore)
-	local Fail = false
+function Movement:StateChecker(self: Type.MovementObj, action: string, Ignore: boolean): boolean
 	if not action then
 		warn("[" .. script.Name .. "] - You forgot to add the action for a StateChecker")
 		return true
@@ -416,9 +454,73 @@ function Movement:StateChecker(self: Type.MovementObj, action, Ignore)
 		if not Ignore and self.IsActing.Dodging then
 			return true
 		end
+	elseif action == "SprintStart" or action == "ExSprintStart" then
+		if self.IsActing.Climbing then
+			return true
+		end
+		if self.IsActing.WallRunning then
+			return true
+		end
+		if self.States.IsCrouching then
+			return true
+		end
+	elseif action == "WallRunStart" then
+		if self.IsActing.WallRunning then
+			return true
+		end
+		if self.IsActing.Climbing then
+			return true
+		end
+		if self.States.IsOnWall then
+			return true
+		end
+		if self.States.IsCrouching then
+			return true
+		end
+		if not self.States.IsInAir then
+			return true
+		end
+	elseif action == "WallRunJump" then
+		if not self.IsActing.WallRunning then
+			return true
+		end
+	elseif action == "DoubleJump" then
+		if not self.States.IsInAir then
+			return true
+		end
+		if self.IsActing.WallRunning then
+			return true
+		end
+		if self.IsActing.Climbing then
+			return true
+		end
+	elseif action == "Climb" then
+		if self.IsActing.WallRunning then
+			return true
+		end
+		if self.IsActing.Climbing then
+			return true
+		end
+	elseif action == "CrouchStart" then
+		if self.IsActing.Climbing then
+			return true
+		end
+		if self.IsActing.Dodging then
+			return true
+		end
+		if self.IsActing.WallRunning then
+			return true
+		end
+		if self.States.IsCrouching then
+			return true
+		end
+	elseif action == "Resting" then
+		if self.States.IsResting then
+			return true
+		end
 	end
 
-	return Fail
+	return false
 end
 
 
