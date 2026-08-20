@@ -163,6 +163,20 @@ MovementEvent.OnServerEvent:Connect(function(plr, action, ...)
 		MovementObj.States.IsCrouching = true
 	end
 
+	if action == "SlideStart" then
+		if MovementObj then
+			MovementObj.States.ISSliding = true
+			Flowmanager.OnSlideStart(MovementObj)
+		end
+	end
+
+	if action == "SlideEnd" then
+		if MovementObj then
+			MovementObj.States.ISSliding = false
+			Flowmanager.OnSlideEnd(MovementObj, function() end)
+		end
+	end
+
 	if action == "Dodge" then
 		local Config = {
 			DashDur = MovementData.Data.DodgeDuration,

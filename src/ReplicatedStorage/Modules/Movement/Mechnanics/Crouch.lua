@@ -10,6 +10,7 @@ local ClientTypes = require(RSModules.ClientTypes)
 local Cast = require(RSModules.Cast)
 local MovementData = require(RSModules.Movement.Data)
 local SpeedMods = require(RSModules.Movement.Ultils.Speed)
+local FlowManager = require(RSModules.Movement.Ultils.Flow)
 local cam = game.Workspace.CurrentCamera
 
 local WeaponAnimationFolder = RS.Animations.Weapons
@@ -243,18 +244,118 @@ function CrouchModule.StartCrouch(MovementObj: ClientTypes.MovementObj)
 	end)
 end
 
-function CrouchModule.StartSlide(MovementObj: ClientTypes.MovementObj)
-	--- Once i figure out the slide mechanics then i would add it there
-end
+local SlideDebounce = {}
 
-function CrouchModule.Start(MovementObj: ClientTypes.MovementObj)
-	if MovementObj.States.IsCrouching then
-		MovementObj.InfoTable.Crouch.Stop()
+function CrouchModule.StartSlide(MovementObj: ClientTypes.MovementObj)
+	if MovementObj.States.ISSliding then
+		MovementObj.InfoTable.Slide.Stop()
+		return
+	end
+	if SlideDebounce[MovementObj] then
+		return
+	end
+	if StopChecker(MovementObj) then
 		return
 	end
 
+	local char = MovementObj.char
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	local HRP = char:FindFirstChild("HumanoidRootPart")
+	if not hum or not HRP then
+		return
+	end
+
+	SlideDebounce[MovementObj] = true
+	MovementObj.States.ISSliding = true
+	MovementObj:ServerRequest("SlideStart")
+
+	FlowManager.OnSlideStart(MovementObj)
+
+	local stored = FlowManager.GetStoredVelocity(MovementObj)
+	if stored.Magnitude < 1 then
+		stored = Vector3.new(HRP.CFrame.LookVector.X, 0, HRP.CFrame.LookVector.Z).Unit * (MovementData.Data.SprintSpeed or 20)
+	end
+
+	local bv = Instance.new("BodyVelocity")
+	bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+	bv.Velocity = stored
+	bv.Parent = HRP
+
+	local SlideAnim = nil
+	local CurrentWeapon = char:GetAttribute("CurrentWeapon")
+	local WeaponsFolder = WeaponAnimationFolder[CurrentWeapon] and WeaponAnimationFolder[CurrentWeapon].Movement
+	if WeaponsFolder and WeaponsFolder.Slide then
+		SlideAnim = hum.Animator:LoadAnimation(WeaponsFolder.Slide)
+		SlideAnim:Play()
+	end
+
+	local conn = nil
+	MovementObj.InfoTable.Slide.Stop = function()
+		if not MovementObj.States.ISSliding then
+			return
+		end
+		MovementObj.States.ISSliding = false
+		if conn then
+			conn:Disconnect()
+			conn = nil
+		end
+		if bv and bv.Parent then
+			bv:Destroy()
+		end
+		if SlideAnim and SlideAnim.IsPlaying then
+			SlideAnim:Stop()
+		end
+		MovementObj:ServerRequest("SlideEnd")
+		FlowManager.OnSlideEnd(MovementObj, function() end)
+		MovementObj.InfoTable.Slide.Stop = function() end
+		task.delay(0.05, function()
+			SlideDebounce[MovementObj] = nil
+		end)
+	end
+
+	conn = RunService.Heartbeat:Connect(function(dt)
+		if not MovementObj.States.ISSliding or not bv.Parent then
+			return
+		end
+
+		local flat = Vector3.new(bv.Velocity.X, 0, bv.Velocity.Z)
+		local slideDir = flat.Unit
+		if slideDir.Magnitude < 0.001 then
+			slideDir = Vector3.new(HRP.CFrame.LookVector.X, 0, HRP.CFrame.LookVector.Z).Unit
+		end
+
+		local hit = workspace:Raycast(HRP.Position + Vector3.new(0, 1, 0), Vector3.new(0, -3.5, 0), { char })
+		local groundNormal = hit and hit.Normal or Vector3.new(0, 1, 0)
+		local slope = groundNormal:Dot(slideDir)
+
+		local speed = bv.Velocity.Magnitude
+		if slope <= 0 then
+			speed = math.max(0, speed - MovementData.Data.SlideSpeedDrain * dt)
+			MovementObj.Flow.Momentum = math.max(0, MovementObj.Flow.Momentum - MovementData.Data.SlideMomentumDrain * dt)
+		else
+			speed = math.min(MovementData.Data.SlideMaxSpeed, speed + MovementData.Data.SlideSpeedGain * slope * dt)
+			MovementObj.Flow.Momentum = math.min(MovementObj.Flow.MaxMomentum or 100, MovementObj.Flow.Momentum + MovementData.Data.SlideMomentumGain * slope * dt)
+		end
+
+		if speed < MovementData.Data.SlideEndSpeed then
+			bv.Velocity = Vector3.new()
+			MovementObj.InfoTable.Slide.Stop()
+			return
+		end
+
+		bv.Velocity = slideDir * speed
+	end)
+end
+
+function CrouchModule.Start(MovementObj: ClientTypes.MovementObj)
 	if MovementObj.IsActing.IsSprinting or MovementObj.IsActing.IsEXSprinting then
 		CrouchModule.StartSlide(MovementObj)
+		return
+	end
+
+	if MovementObj.States.IsCrouching then
+		MovementObj.InfoTable.Crouch.Stop()
+		return
 	end
 
 	CrouchModule.StartCrouch(MovementObj)

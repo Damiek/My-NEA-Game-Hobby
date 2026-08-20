@@ -35,6 +35,8 @@ local RATES = {
 	DodgeCancel = MovementData.Data.DodgeCancelCooldown,
 	CrouchStart = 0.1,
 	CrouchEnd = 0.1,
+	SlideStart = 0.1,
+	SlideEnd = 0.1,
 	LedgeHold = 0.5,
 	ReleaseLedge = 0.5,
 	FlowUpdate = 0.1,
@@ -135,6 +137,12 @@ local function CheckAction(state, char, MovementObj:ClientTypes.MovementObj, act
 		if acting.Dodging or acting.Climbing or acting.WallRunning then return false, "blocked" end
 	elseif action == "CrouchEnd" then
 		if not states.IsCrouching then return false, "blocked" end
+	elseif action == "SlideStart" then
+		if states.ISSliding then return false, "blocked" end
+		if acting.Dodging or acting.Climbing or acting.WallRunning then return false, "blocked" end
+		if not acting.IsSprinting and not acting.IsEXSprinting then return false, "blocked" end
+	elseif action == "SlideEnd" then
+		if not states.ISSliding then return false, "blocked" end
 	elseif action == "LedgeHold" then
 		if acting.Climbing then return false, "blocked" end
 		if not WasRecentlyAirborne(state, char) then return false, "blocked" end

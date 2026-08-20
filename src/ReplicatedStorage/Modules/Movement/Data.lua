@@ -44,6 +44,15 @@ export type DataSet = {
 	CrouchCooldown: number,
 	CrouchFov: number,
 
+	--// Slide
+	SlideEntryMomentumGain: number,
+	SlideSpeedDrain: number,
+	SlideSpeedGain: number,
+	SlideMomentumDrain: number,
+	SlideMomentumGain: number,
+	SlideMaxSpeed: number,
+	SlideEndSpeed: number,
+
 	--// Climb
 	ClimbSpeed: number,
 	ClimbMaxHeight: number,
@@ -129,6 +138,15 @@ local DataTable: DataSet = {
 	CrouchSpeed = 11,
 	CrouchCooldown = 0.1,
 	CrouchFov = 65,
+
+	--// Slide
+	SlideEntryMomentumGain = 2,
+	SlideSpeedDrain = 18,
+	SlideSpeedGain = 28,
+	SlideMomentumDrain = 6,
+	SlideMomentumGain = 10,
+	SlideMaxSpeed = 60,
+	SlideEndSpeed = 2,
 
 	--// Climb
 	ClimbSpeed = 20,

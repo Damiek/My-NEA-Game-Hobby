@@ -521,9 +521,15 @@ UIS.InputEnded:Connect(function(input, isTyping)
         if object.IsActing.IsSprinting or object.IsActing.IsEXSprinting then
             Sprint.NormalToggle(object)
         end
+        if object.States.ISSliding then
+            object.InfoTable.Slide.Stop()
+        end
     elseif key == Enum.KeyCode.LeftAlt then
         if object.IsActing.IsEXSprinting then
             Sprint.ExToggle(object)
+        end
+        if object.States.ISSliding and not object.IsActing.IsEXSprinting then
+            object.InfoTable.Slide.Stop()
         end
     end
 end)
@@ -561,6 +567,11 @@ function CrouchStatesChecker(_, Newstates)
 			or Newstates == Enum.HumanoidStateType.Physics
 		then
 			object.InfoTable.Crouch.Stop()
+		end
+	end
+	if object.States.ISSliding then
+		if Newstates ~= Enum.HumanoidStateType.Running then
+			object.InfoTable.Slide.Stop()
 		end
 	end
 end

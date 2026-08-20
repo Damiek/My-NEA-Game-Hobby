@@ -339,7 +339,7 @@ function FlowManager.OnSlideStart(MovementObj: ClientTypes.MovementObj)
 
     flow.LastMechanic = "Slide"
     flow.IsTransitioning = true
-    flow.Momentum = math.min(flow.MaxMomentum, flow.Momentum + 15)
+    flow.Momentum = math.min(flow.MaxMomentum, flow.Momentum + (MovementData.Data.SlideEntryMomentumGain or 2))
 
     FlowManager.StoreVelocity(MovementObj, 1.0)
 end

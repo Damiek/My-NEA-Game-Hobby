@@ -399,6 +399,12 @@ function Movement:ServerRequest(action,...)
 	if action == "CrouchEnd" then
 		MovementEvent:FireServer(action)
 	end
+	if action == "SlideStart" then
+		MovementEvent:FireServer(action)
+	end
+	if action == "SlideEnd" then
+		MovementEvent:FireServer(action)
+	end
 	if action == "SprintStart" then
 		MovementEvent:FireServer(action)
 	end
