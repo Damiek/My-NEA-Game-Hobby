@@ -25,7 +25,7 @@ local ragdollInstanceNames = {
 }
 
 --||Settings||--
-local RagdollSounds = true --if you wanna have ragdoll sounds when the body hits something set this to true
+local RagdollSounds = false --disabled; re-enable to get body-impact sounds. ImpactSound.server.lua stays alive for that.
 local fixNpcFling = true --fixes the npc flinging away when they get up
 local fixVoidBug = true --fixes the bug that the player doesnt respawn when he falls into the void (may causes error)
 
