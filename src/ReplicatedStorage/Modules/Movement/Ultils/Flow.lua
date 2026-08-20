@@ -34,6 +34,9 @@ local Config = {
     MomentumDecayRate = 4.5,            
     MaxMomentumBonus = 0.50,            
     BaseMomentum = 100,   
+
+    MomentumRetainOnCrouch = 0.25,      
+    CrouchMomentumDrainMultiplier = 2.5, 
     
     FlowDebug = false,
 }
@@ -139,7 +142,9 @@ function FlowManager.StartSpeedLerp(MovementObj: ClientTypes.MovementObj)
         end
 
         -- MOMENTUM PROFILE HANDLING
-        if MovementObj.IsActing.IsEXSprinting then
+        if MovementObj.States.IsCrouching then
+            flow.Momentum = math.max(0, flow.Momentum - (Config.MomentumDecayRate * Config.CrouchMomentumDrainMultiplier * dt))
+        elseif MovementObj.IsActing.IsEXSprinting then
             flow.Momentum = math.min(flow.MaxMomentum, flow.Momentum + (10 * dt))
         elseif MovementObj.IsActing.IsSprinting then
             flow.Momentum = math.min(flow.MaxMomentum, flow.Momentum + (7 * dt))
@@ -361,6 +366,45 @@ function FlowManager.OnSlideEnd(MovementObj: ClientTypes.MovementObj, onSprintRe
             end
         end
     end)
+end
+
+function FlowManager.OnCrouchStart(MovementObj: ClientTypes.MovementObj, retain: number?)
+    local flow = VerifyFlowStructure(MovementObj)
+    local char = MovementObj.char
+    if not char then return end
+
+    local keep = retain or Config.MomentumRetainOnCrouch
+    flow.LastMechanic = "Crouch"
+    flow.IsTransitioning = true
+    flow.Momentum = math.min(flow.MaxMomentum, flow.Momentum * keep)
+    flow.FlowBonus = 1.0
+    flow.ChainCount = 0
+    flow.TargetSpeed = MovementData.Data.CrouchSpeed
+    flow.BaseSpeed = MovementData.Data.CrouchSpeed
+    flow.CurrentSpeed = MovementData.Data.CrouchSpeed
+end
+
+function FlowManager.OnCrouchEnd(MovementObj: ClientTypes.MovementObj, walkSpeed: number?)
+    local flow = ActiveFlows[MovementObj]
+    local char = MovementObj.char
+    if not flow or not char then return end
+
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+
+    flow.IsTransitioning = false
+
+    local target = walkSpeed
+    if not target then
+        target = MovementData.Data.WalkSpeed
+        if MovementObj.char then
+            target = SpeedModule.GetMovementSpeed(MovementObj.char, "WalkSpeed", "Walk")
+        end
+    end
+    flow.TargetSpeed = target
+    flow.BaseSpeed = target
+    flow.CurrentSpeed = target
+    hum.WalkSpeed = target
 end
 
 function FlowManager.OnDodgeStart(MovementObj: ClientTypes.MovementObj)

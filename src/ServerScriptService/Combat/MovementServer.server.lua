@@ -153,14 +153,20 @@ MovementEvent.OnServerEvent:Connect(function(plr, action, ...)
 	end
 
 	if action == "CrouchStart" then
-		print("Server has gotton crouch request")
-		print(MovementObj.States)
 		if MovementObj.States.IsCrouching then
 			return
 		end
-		print("SOundPLAyes?")
 		SoundsModule.PlaySound(SFX.SFX.Movement.Crouch, Torso)
 		MovementObj.States.IsCrouching = true
+		Flowmanager.OnCrouchStart(MovementObj)
+	end
+
+	if action == "CrouchEnd" then
+		if not MovementObj.States.IsCrouching then
+			return
+		end
+		MovementObj.States.IsCrouching = false
+		Flowmanager.OnCrouchEnd(MovementObj)
 	end
 
 	if action == "SlideStart" then

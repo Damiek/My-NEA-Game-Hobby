@@ -86,7 +86,7 @@ local function HeadChecker(char)
 	return Result ~= nil
 end
 
-function CrouchModule.StartCrouch(MovementObj: ClientTypes.MovementObj)
+function CrouchModule.StartCrouch(MovementObj: ClientTypes.MovementObj, momentumRetain: number?)
 	if StopChecker(MovementObj) then
 		return
 	end
@@ -112,6 +112,7 @@ function CrouchModule.StartCrouch(MovementObj: ClientTypes.MovementObj)
 	MovementObj:ClearWalkAnims()
 	MovementObj:ServerRequest("CrouchStart")
 	hum.WalkSpeed = SpeedMods.GetMovementSpeed(char, "CrouchSpeed", "Crouch")
+	FlowManager.OnCrouchStart(MovementObj, momentumRetain)
 
 	local playerflag = MovementObj.identifer
 	local plr = nil
@@ -154,6 +155,7 @@ function CrouchModule.StartCrouch(MovementObj: ClientTypes.MovementObj)
 		MovementObj:UpdateWalkTracks()
 		MovementObj:ServerRequest("CrouchEnd")
 		hum.WalkSpeed = SpeedMods.GetMovementSpeed(char, "WalkSpeed", "Walk")
+		FlowManager.OnCrouchEnd(MovementObj, hum.WalkSpeed)
 		hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
 
 		local playerflag = MovementObj.identifer
